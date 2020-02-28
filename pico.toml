@@ -1,0 +1,8 @@
+author = "DanBrooker"
+cart = "legend.p8"
+description = ""
+name = "Legend"
+open_pico = true
+src_dir = "src"
+version = "1.0.0"
+watch = false
