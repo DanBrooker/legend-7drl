@@ -6,16 +6,16 @@ __lua__
 
 
 size=36
-dev=false
+-- dev=true
 
 t_player = 16
 t_bat = 32
 t_snake = 48
 
-t_key = 3
-t_gold=35
-t_weapons = {19,20,21,5,37,53}
-t_items = {4, 36, 51, 52}
+t_key = {"k1"}
+t_gold = {"g1"}
+t_weapons = {"w1","w2","w3"}
+t_items = {"i1", "i2", "i3"}
 
 t_stairs = 58
 t_wall_t = 12
@@ -27,6 +27,59 @@ t_door_b = 23
 t_door_l = 39
 t_door_r = 55
 t_floor = {9,10,25,26,41} --,57, 42}
+
+armoury = {
+  k1 = {
+    name = 'key',
+    spr = 3,
+    type = 'k'
+  },
+  g1 = {
+    name = 'gold',
+    spr = 35,
+    amount = 1,
+    type = 'g'
+  },
+  w1 = {
+    name = "dagger",
+    type = "w",
+    dmg = 2,
+    spr = 19
+  },
+  w2 = {
+    name = "sword",
+    type = "w",
+    dmg = 3,
+    spr = 20
+  },
+  w3 = {
+    name = "great sword",
+    type = "w",
+    dmg = 4,
+    spr = 20
+  },
+  i1 = {
+    name = "ring",
+    type = "e",
+    spr = 4
+  },
+  i2 = {
+    name = "amulet",
+    type = "e",
+    spr = 36
+  },
+  i3 = {
+    name = "armour",
+    type = "e",
+    armour = 1,
+    spr = 52
+  },
+  i3 = {
+    name = "bomb",
+    type = "i",
+    spr = 18
+  }
+}
 
 id=0
 function entity_create(x, y, spr, col, args)
@@ -65,19 +118,16 @@ function entity_create(x, y, spr, col, args)
   add(entities, new_entity)
   return new_entity
 end
-function item_create(x,y, spr, args)
+function item_create(x, y, key)
+  -- log(key)
+  local data = armoury[key]
+  -- log(data)
   local new_item = {
    id = id,
-   name = "item" .. x .. "x" .. y,
    x = x,
-   y = y,
-   spr=spr,
-   col = col or 10,
-   outline = false,
-   flash = 0,
-   flip=false
+   y = y
   }
-  for k,v in pairs(args or {}) do
+  for k,v in pairs(data) do
    new_item[k] = v
   end
   add(items, new_item)
@@ -106,6 +156,7 @@ function _draw()
 
  cursor(4,4)
  color(8)
+ camera()
  for txt in all(debug) do
   print(txt)
  end
@@ -125,10 +176,12 @@ function startgame()
   items={}
   float={}
   enviro={}
+  inventory={}
 
   zel_init()
 
   player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, 8)
+  zel_spawn(zgetar())
 
   _upd=update_game
   _drw=draw_game
@@ -143,22 +196,42 @@ function update_game()
 end
 
 function draw_game()
- cls(0)
- do_shake()
+  cls(0)
+  do_shake()
 
- clip(32, 32, 128-56, 128-56)
- map(0, 0, 0,0, size, size)
- clip()
+  clip(32, 32, 128-56, 128-56)
+  map(0, 0, 0,0, size, size)
 
- -- foreach(enviro,draw_enviro)
- foreach(items,item_draw)
- foreach(entities,entity_draw)
- -- foreach(particles,draw_part)
- foreach(float, draw_float)
- if dev then
-  minimap_draw()
+
+  -- foreach(enviro,draw_enviro)
+  foreach(items,item_draw)
+  foreach(entities,entity_draw)
+  clip()
+  -- foreach(particles,draw_part)
+  foreach(float, draw_float)
+  if (dev) minimap_draw()
+
+  camera()
+  draw_inventory()
+  draw_health()
+  draw_armour()
   zel_draw()
- end
+end
+
+function draw_inventory()
+  local i = 2
+  for item in all(inventory) do
+    drawspr(item.spr, 120, i, item.col, false, false, true)
+    i += 8
+  end
+end
+
+function draw_health()
+
+end
+
+function draw_armour()
+
 end
 
 function update_player(player)
@@ -184,8 +257,9 @@ function update_end_turn()
  item = item_at(player.x, player.y)
  if item then
    del(items, item)
+   add(inventory, item)
    -- addfloat('item get',player.x * 8, player.y * 8, 9)
-   addfloat('item get', player.x * 8, player.y * 8, 2)
+   addfloat(item.name, player.x * 8, player.y * 8, 2)
  end
 
  for entity in all(entities) do
@@ -203,9 +277,9 @@ function update_end_turn()
      --if (entity.name != env.type) dmg(entity, 1, env.name)
     --end
    end
-  --if (entity.hp <= 0) then
-   --on_death(entity)
-  --end
+  if (entity.hp <= 0) then
+   on_death(entity)
+  end
  end
  for env in all(enviro) do
   env.turns -= 1
@@ -213,6 +287,14 @@ function update_end_turn()
  end
  _upd = update_ai
   --_upd =
+end
+
+function on_death(ent)
+  if ent == player then
+    gameover()
+  else
+    del(entities, ent)
+  end
 end
 
 function update_ai()
@@ -303,7 +385,7 @@ function item_draw(self)
  -- end
  local frame = self.spr -- self.stun != 0 and self.ani[1] or getframe(self.ani)
  local x, y = self.x*8, self.y*8
- drawspr(frame, x, y, col, self.flp, self.flash > 0, self.outline)
+ drawspr(frame, x, y, col, false, false, self.outline)
 
  --if (self.stun !=0) draws(10, x, y, 0, false)
  --if (self.roots !=0) draws(11, x, y, 0, false)
@@ -340,21 +422,48 @@ function input(butt)
  end
 end
 
-function moveplayer(dir)
- local dx, dy = dir[1], dir[2]
- local destx,desty=player.x+dx,player.y+dy
- --local tle=mget(destx,desty)
+function find(array, key, value)
+  -- log("find ["..key.."]="..value)
+  -- log(array)
 
- if walkable(destx,desty, "entities") then
+  for m in all(array) do
+   if m[key] == value then
+    -- log("found " .. value)
+    return m
+   end
+  end
+end
+
+function moveplayer(dir)
+  local dx, dy = dir[1], dir[2]
+  local destx,desty=player.x+dx,player.y+dy
+  --local tle=mget(destx,desty)
+
+  if walkable(destx, desty, "entities") then
   -- sfx(63)
-  mobwalk(player,dx,dy)
+    mobwalk(player,dx,dy)
   --animate()
- else
+  elseif locked(destx,desty) and find(inventory, "type", "k") then
+    -- log("unlocked")
+    key = find(inventory, "type", "k")
+    del(inventory, key)
+    mset(destx, desty, mget(destx,desty)-1)
+    -- mobwalk(player,dx,dy)
+  elseif entity_at(destx,desty) then
+    entity = entity_at(destx,desty)
+    dmg(entity, player.dmg, player.name)
+  else
   -- sfx(63)
-  mobbump(player,dx,dy)
+    mobbump(player,dx,dy)
   --animate()
- end
- return true
+  end
+  return true
+end
+
+function locked(x, y)
+  local locked = fget(mget(x,y), 2)
+  -- log("locked " .. to_s(locked))
+  return locked
 end
 
 function walkable(x, y, mode)
@@ -453,30 +562,33 @@ function zel_draw()
   local rs = flr(size/s)
   for i = 1,s do
     for j = 1,s do
-      cursor((i-1)*rs + 3,(j-1)*rs + 2)
-      local v = gget(i,j)
-      if v == 'e' then
-        color(11)
-      elseif v == 'b' then
-        color(8)
-      elseif v == 'h' then
-        color(5)
-      elseif v == 'k' then
-        color(10)
-      elseif v == 'l' then
-        color(4)
-      elseif v == 's' then
-        color(2)
-      elseif v == 't' then
-        color(9)
-      else
-        color(12)
-      end
-      print(v)
+      -- cursor((i-1)*rs + 3,(j-1)*rs + 2)
+      -- local v = gget(i,j)
+      -- if v == 'e' then
+      --   color(11)
+      -- elseif v == 'b' then
+      --   color(8)
+      -- elseif v == 'h' then
+      --   color(5)
+      -- elseif v == 'k' then
+      --   color(10)
+      -- elseif v == 'l' then
+      --   color(4)
+      -- elseif v == 's' then
+      --   color(2)
+      -- elseif v == 't' then
+      --   color(9)
+      -- else
+      --   color(12)
+      -- end
+      -- -- if (dev) print(v)
+      -- print(v)
 
       local room = zgetr(i,j)
-      if room and room.index == zel_active then
-        rect(room.left, room.top, room.right, room.bottom, 11)
+      if room == zgetar() then
+        rect(room.left+1, room.top+1, room.right-2, room.bottom-2, 11)
+      elseif room.spawn then
+        rect(room.left+1, room.top+1, room.right-2, room.bottom-2, 7)
       end
     end
   end
@@ -504,7 +616,7 @@ end
 
 function zgetar()
   local i, j = flr(player.x / 9) + 1, flr(player.y / 9) + 1
-  debug[1] = i .. "," .. j
+  -- debug[1] = i .. "," .. j
   return zgetr(i,j)
 end
 
@@ -526,7 +638,8 @@ function zel_spawn(room)
   if room.g == 'e' then
     -- do nothing
     item_create(room.left+2, room.top+2, randa(t_weapons))
-    item_create(room.left+4, room.top+4, randa(t_items))
+    -- item_create(room.left+4, room.top+4, randa(t_items))
+    -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
     entity_create(room.left+2, room.top+2, 48, 8)
   elseif room.g == 't' then
@@ -534,7 +647,7 @@ function zel_spawn(room)
   elseif room.g == 's' then
     item_create(room.left+2, room.top+2, randa(t_items))
   elseif room.g == 'k' then
-    item_create(room.left+2, room.top+2, t_key)
+    item_create(room.left+2, room.top+2, randa(t_key))
   else
 
   end
@@ -560,20 +673,20 @@ function zel_generate()
     end
   end
 
-  --valid_grid = function()
-    --local zero = 0
-    --local required = { "k", "l", "b", "e" }
-    --for i = 1,s do
-      --for j = 1,s do
-        --del(required, grid[i][j])
-        --if (grid[i][j] == 0) zero += 1
-      --end
-    --end
-    --log("required")
-    --log(required)
+  valid_grid = function()
+    local zero = 0
+    local required = { "k", "l", "b", "e" }
+    for i = 1,s do
+      for j = 1,s do
+        del(required, grid[i][j])
+        if (grid[i][j] == 0) zero += 1
+      end
+    end
+    log("required")
+    log(required)
 
-    --return #required == 0 and zero <= 3
-  --end
+    return #required == 0 and zero <= 3
+  end
 
   empty = function(n)
     return ggetp(n) == 0
@@ -677,7 +790,7 @@ function zel_generate()
       end
     end
 
-    if emp then
+    if emp and not contains(path, p) then
       add(keys, p)
     end
 
@@ -712,10 +825,10 @@ function zel_generate()
   --grid[start[1]][start[2]] = 'e'
   gsetp(start, 'e')
 
-  --if not valid_grid() then
-    --zel_generate()
-    --return
-  --end
+  if not valid_grid() then
+    zel_generate()
+    return
+  end
 
   function draw_room(x,y, g)
     --log('room')
@@ -749,31 +862,38 @@ function zel_generate()
 
     local mrs = flr(rs/2)
 
+    door = 1
+    opp = 1
+    if dx == 1 then
+      door = t_door_r
+      opp = t_door_l
+    elseif dx == -1 then
+      door = t_door_l
+      opp = t_door_r
+    elseif dy == 1 then
+      door = t_door_b
+      opp = t_door_t
+    else -- dy == -1
+      door = t_door_t
+      opp = t_door_b
+    end
+
+    if ggetp(a) == 'l' then
+      door += 1
+    elseif ggetp(b) == 's' then
+      door -= 1
+    end
+
     for i = mrs, mrs+1 do
       --i = flr(rs/2)
       x = a[1] * rs - rs/2 + (i*dx)
       y = a[2] * rs - rs/2 + (i*dy)
 
       --if i == flr(rs/2) then
-        door = 1
-      if dx == 1 then
-        door = t_door_r
-      elseif dx == -1 then
-        door = t_door_l
-      elseif dy == 1 then
-        door = t_door_b
-      else -- dy == -1
-        door = t_door_t
-      end
 
-
-      if ggetp(a) == 'l' then
-        door += 1
-      elseif ggetp(b) == 's' then
-        -- mset(x,y, 1)
-        door -= 1
-      end
       mset(x,y, door)
+      door=opp
+
       --else
         --mset(y,x, 17)
       --end
@@ -1170,12 +1290,12 @@ __gfx__
 0000000003010205000000000000000000000000000000005555555550000005544444451111111111111111d5d5ddd55555555555d5ddd50000000000000000
 000000000000000000000000000000000000000000000000dddddd5dd000000dd666644d1111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
 000044000000440000000000000000000000000000040000dddddd5dd000000dd444444d1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
-0000ff000000ff0000000000000000000006000000704000dddddd5dd000000dd666644d11111111155551115555ddd50000000055555ddd0000000000000000
-00033300000333000000000000000000000600000070040055dddd5550000005544444451111111115555111ddd5ddd5000000005ddd5ddd0000000000000000
-003033000030330000000000000600000006000000700400dddddddddd0000dddd4444dd1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
-00f044f000f044f000000000000600000006000000700400dddddddddd0000dddd4444dd1111111111111551ddd55555000000005ddd55550000000000000000
-000404000004040000000000006660000066600000704000ddd5ddddddd00dddddd44ddd1111111111111551ddd5ddd5000000005ddd5ddd0000000000000000
-0545545005455450000000000006000000060000000400005555555555555555555555551111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
+0000ff000000ff0000000700000000000006000000704000dddddd5dd000000dd666644d11111111155551115555ddd50000000055555ddd0000000000000000
+00033300000333000000700000000000000600000070040055dddd5550000005544444451111111115555111ddd5ddd5000000005ddd5ddd0000000000000000
+003033000030330000055000000600000006000000700400dddddddddd0000dddd4444dd1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
+00f044f000f044f000555500000600000006000000700400dddddddddd0000dddd4444dd1111111111111551ddd55555000000005ddd55550000000000000000
+000404000004040000555500006660000066600000704000ddd5ddddddd00dddddd44ddd1111111111111551ddd5ddd5000000005ddd5ddd0000000000000000
+0545545005455450000550000006000000060000000400005555555555555555555555551111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
 000000000000000000000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111111110d0115ddddd55dddddd5d5ddd5d5d0000000000000000
 006605000066050000000000000000000007000000000000ddd5ddd5ddd50000ddd544441313111110dddd01d5dddd55dddddd5dd5dd5dd50000000000000000
 06600050066000500000000000000000007070000000080055ddddd55550000055544444131311110dddddd0dd5dd5dddddddd5ddd5d5ddd0000000000000000
@@ -1193,6 +1313,6 @@ __gfx__
 00bb505300bb5053000000000006060006066060007000005ddd5ddd00005ddd44445ddd11000001551611110000000000000000000000000000000000000000
 055bbb33055bbb33000000000006060000066000000000005ddd5ddd5ddd5ddd5ddd5ddd11111111551111110000000000000000000000000000000000000000
 __gff__
-0000000000000000010000010101000000000000000000000100000100010000000000000000000001000101010100000000000000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000050000010101000000000000000000000500000100010000000000000000000005000101010100000000000000000000050100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 

@@ -6,22 +6,42 @@ function update_game()
 end
 
 function draw_game()
- cls(0)
- do_shake()
+  cls(0)
+  do_shake()
 
- clip(32, 32, 128-56, 128-56)
- map(0, 0, 0,0, size, size)
- clip()
+  clip(32, 32, 128-56, 128-56)
+  map(0, 0, 0,0, size, size)
 
- -- foreach(enviro,draw_enviro)
- foreach(items,item_draw)
- foreach(entities,entity_draw)
- -- foreach(particles,draw_part)
- foreach(float, draw_float)
- if dev then
-  minimap_draw()
+
+  -- foreach(enviro,draw_enviro)
+  foreach(items,item_draw)
+  foreach(entities,entity_draw)
+  clip()
+  -- foreach(particles,draw_part)
+  foreach(float, draw_float)
+  if (dev) minimap_draw()
+
+  camera()
+  draw_inventory()
+  draw_health()
+  draw_armour()
   zel_draw()
- end
+end
+
+function draw_inventory()
+  local i = 2
+  for item in all(inventory) do
+    drawspr(item.spr, 120, i, item.col, false, false, true)
+    i += 8
+  end
+end
+
+function draw_health()
+
+end
+
+function draw_armour()
+
 end
 
 function update_player(player)
@@ -47,8 +67,9 @@ function update_end_turn()
  item = item_at(player.x, player.y)
  if item then
    del(items, item)
+   add(inventory, item)
    -- addfloat('item get',player.x * 8, player.y * 8, 9)
-   addfloat('item get', player.x * 8, player.y * 8, 2)
+   addfloat(item.name, player.x * 8, player.y * 8, 2)
  end
 
  for entity in all(entities) do
@@ -66,9 +87,9 @@ function update_end_turn()
      --if (entity.name != env.type) dmg(entity, 1, env.name)
     --end
    end
-  --if (entity.hp <= 0) then
-   --on_death(entity)
-  --end
+  if (entity.hp <= 0) then
+   on_death(entity)
+  end
  end
  for env in all(enviro) do
   env.turns -= 1
@@ -76,6 +97,14 @@ function update_end_turn()
  end
  _upd = update_ai
   --_upd =
+end
+
+function on_death(ent)
+  if ent == player then
+    gameover()
+  else
+    del(entities, ent)
+  end
 end
 
 function update_ai()
@@ -166,7 +195,7 @@ function item_draw(self)
  -- end
  local frame = self.spr -- self.stun != 0 and self.ani[1] or getframe(self.ani)
  local x, y = self.x*8, self.y*8
- drawspr(frame, x, y, col, self.flp, self.flash > 0, self.outline)
+ drawspr(frame, x, y, col, false, false, self.outline)
 
  --if (self.stun !=0) draws(10, x, y, 0, false)
  --if (self.roots !=0) draws(11, x, y, 0, false)
@@ -203,21 +232,48 @@ function input(butt)
  end
 end
 
-function moveplayer(dir)
- local dx, dy = dir[1], dir[2]
- local destx,desty=player.x+dx,player.y+dy
- --local tle=mget(destx,desty)
+function find(array, key, value)
+  -- log("find ["..key.."]="..value)
+  -- log(array)
 
- if walkable(destx,desty, "entities") then
+  for m in all(array) do
+   if m[key] == value then
+    -- log("found " .. value)
+    return m
+   end
+  end
+end
+
+function moveplayer(dir)
+  local dx, dy = dir[1], dir[2]
+  local destx,desty=player.x+dx,player.y+dy
+  --local tle=mget(destx,desty)
+
+  if walkable(destx, desty, "entities") then
   -- sfx(63)
-  mobwalk(player,dx,dy)
+    mobwalk(player,dx,dy)
   --animate()
- else
+  elseif locked(destx,desty) and find(inventory, "type", "k") then
+    -- log("unlocked")
+    key = find(inventory, "type", "k")
+    del(inventory, key)
+    mset(destx, desty, mget(destx,desty)-1)
+    -- mobwalk(player,dx,dy)
+  elseif entity_at(destx,desty) then
+    entity = entity_at(destx,desty)
+    dmg(entity, player.dmg, player.name)
+  else
   -- sfx(63)
-  mobbump(player,dx,dy)
+    mobbump(player,dx,dy)
   --animate()
- end
- return true
+  end
+  return true
+end
+
+function locked(x, y)
+  local locked = fget(mget(x,y), 2)
+  -- log("locked " .. to_s(locked))
+  return locked
 end
 
 function walkable(x, y, mode)

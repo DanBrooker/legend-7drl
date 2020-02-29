@@ -7,30 +7,33 @@ function zel_draw()
   local rs = flr(size/s)
   for i = 1,s do
     for j = 1,s do
-      cursor((i-1)*rs + 3,(j-1)*rs + 2)
-      local v = gget(i,j)
-      if v == 'e' then
-        color(11)
-      elseif v == 'b' then
-        color(8)
-      elseif v == 'h' then
-        color(5)
-      elseif v == 'k' then
-        color(10)
-      elseif v == 'l' then
-        color(4)
-      elseif v == 's' then
-        color(2)
-      elseif v == 't' then
-        color(9)
-      else
-        color(12)
-      end
-      print(v)
+      -- cursor((i-1)*rs + 3,(j-1)*rs + 2)
+      -- local v = gget(i,j)
+      -- if v == 'e' then
+      --   color(11)
+      -- elseif v == 'b' then
+      --   color(8)
+      -- elseif v == 'h' then
+      --   color(5)
+      -- elseif v == 'k' then
+      --   color(10)
+      -- elseif v == 'l' then
+      --   color(4)
+      -- elseif v == 's' then
+      --   color(2)
+      -- elseif v == 't' then
+      --   color(9)
+      -- else
+      --   color(12)
+      -- end
+      -- -- if (dev) print(v)
+      -- print(v)
 
       local room = zgetr(i,j)
-      if room and room.index == zel_active then
-        rect(room.left, room.top, room.right, room.bottom, 11)
+      if room == zgetar() then
+        rect(room.left+1, room.top+1, room.right-2, room.bottom-2, 11)
+      elseif room.spawn then
+        rect(room.left+1, room.top+1, room.right-2, room.bottom-2, 7)
       end
     end
   end
@@ -58,7 +61,7 @@ end
 
 function zgetar()
   local i, j = flr(player.x / 9) + 1, flr(player.y / 9) + 1
-  debug[1] = i .. "," .. j
+  -- debug[1] = i .. "," .. j
   return zgetr(i,j)
 end
 
@@ -80,7 +83,8 @@ function zel_spawn(room)
   if room.g == 'e' then
     -- do nothing
     item_create(room.left+2, room.top+2, randa(t_weapons))
-    item_create(room.left+4, room.top+4, randa(t_items))
+    -- item_create(room.left+4, room.top+4, randa(t_items))
+    -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
     entity_create(room.left+2, room.top+2, 48, 8)
   elseif room.g == 't' then
@@ -88,7 +92,7 @@ function zel_spawn(room)
   elseif room.g == 's' then
     item_create(room.left+2, room.top+2, randa(t_items))
   elseif room.g == 'k' then
-    item_create(room.left+2, room.top+2, t_key)
+    item_create(room.left+2, room.top+2, randa(t_key))
   else
 
   end
@@ -114,20 +118,20 @@ function zel_generate()
     end
   end
 
-  --valid_grid = function()
-    --local zero = 0
-    --local required = { "k", "l", "b", "e" }
-    --for i = 1,s do
-      --for j = 1,s do
-        --del(required, grid[i][j])
-        --if (grid[i][j] == 0) zero += 1
-      --end
-    --end
-    --log("required")
-    --log(required)
+  valid_grid = function()
+    local zero = 0
+    local required = { "k", "l", "b", "e" }
+    for i = 1,s do
+      for j = 1,s do
+        del(required, grid[i][j])
+        if (grid[i][j] == 0) zero += 1
+      end
+    end
+    log("required")
+    log(required)
 
-    --return #required == 0 and zero <= 3
-  --end
+    return #required == 0 and zero <= 3
+  end
 
   empty = function(n)
     return ggetp(n) == 0
@@ -231,7 +235,7 @@ function zel_generate()
       end
     end
 
-    if emp then
+    if emp and not contains(path, p) then
       add(keys, p)
     end
 
@@ -266,10 +270,10 @@ function zel_generate()
   --grid[start[1]][start[2]] = 'e'
   gsetp(start, 'e')
 
-  --if not valid_grid() then
-    --zel_generate()
-    --return
-  --end
+  if not valid_grid() then
+    zel_generate()
+    return
+  end
 
   function draw_room(x,y, g)
     --log('room')
@@ -303,31 +307,38 @@ function zel_generate()
 
     local mrs = flr(rs/2)
 
+    door = 1
+    opp = 1
+    if dx == 1 then
+      door = t_door_r
+      opp = t_door_l
+    elseif dx == -1 then
+      door = t_door_l
+      opp = t_door_r
+    elseif dy == 1 then
+      door = t_door_b
+      opp = t_door_t
+    else -- dy == -1
+      door = t_door_t
+      opp = t_door_b
+    end
+
+    if ggetp(a) == 'l' then
+      door += 1
+    elseif ggetp(b) == 's' then
+      door -= 1
+    end
+
     for i = mrs, mrs+1 do
       --i = flr(rs/2)
       x = a[1] * rs - rs/2 + (i*dx)
       y = a[2] * rs - rs/2 + (i*dy)
 
       --if i == flr(rs/2) then
-        door = 1
-      if dx == 1 then
-        door = t_door_r
-      elseif dx == -1 then
-        door = t_door_l
-      elseif dy == 1 then
-        door = t_door_b
-      else -- dy == -1
-        door = t_door_t
-      end
 
-
-      if ggetp(a) == 'l' then
-        door += 1
-      elseif ggetp(b) == 's' then
-        -- mset(x,y, 1)
-        door -= 1
-      end
       mset(x,y, door)
+      door=opp
+
       --else
         --mset(y,x, 17)
       --end

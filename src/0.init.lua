@@ -3,16 +3,16 @@
 
 
 size=36
-dev=false
+-- dev=true
 
 t_player = 16
 t_bat = 32
 t_snake = 48
 
-t_key = 3
-t_gold=35
-t_weapons = {19,20,21,5,37,53}
-t_items = {4, 36, 51, 52}
+t_key = {"k1"}
+t_gold = {"g1"}
+t_weapons = {"w1","w2","w3"}
+t_items = {"i1", "i2", "i3"}
 
 t_stairs = 58
 t_wall_t = 12
@@ -24,6 +24,59 @@ t_door_b = 23
 t_door_l = 39
 t_door_r = 55
 t_floor = {9,10,25,26,41} --,57, 42}
+
+armoury = {
+  k1 = {
+    name = 'key',
+    spr = 3,
+    type = 'k'
+  },
+  g1 = {
+    name = 'gold',
+    spr = 35,
+    amount = 1,
+    type = 'g'
+  },
+  w1 = {
+    name = "dagger",
+    type = "w",
+    dmg = 2,
+    spr = 19
+  },
+  w2 = {
+    name = "sword",
+    type = "w",
+    dmg = 3,
+    spr = 20
+  },
+  w3 = {
+    name = "great sword",
+    type = "w",
+    dmg = 4,
+    spr = 20
+  },
+  i1 = {
+    name = "ring",
+    type = "e",
+    spr = 4
+  },
+  i2 = {
+    name = "amulet",
+    type = "e",
+    spr = 36
+  },
+  i3 = {
+    name = "armour",
+    type = "e",
+    armour = 1,
+    spr = 52
+  },
+  i3 = {
+    name = "bomb",
+    type = "i",
+    spr = 18
+  }
+}
 
 id=0
 function entity_create(x, y, spr, col, args)
@@ -62,19 +115,16 @@ function entity_create(x, y, spr, col, args)
   add(entities, new_entity)
   return new_entity
 end
-function item_create(x,y, spr, args)
+function item_create(x, y, key)
+  -- log(key)
+  local data = armoury[key]
+  -- log(data)
   local new_item = {
    id = id,
-   name = "item" .. x .. "x" .. y,
    x = x,
-   y = y,
-   spr=spr,
-   col = col or 10,
-   outline = false,
-   flash = 0,
-   flip=false
+   y = y
   }
-  for k,v in pairs(args or {}) do
+  for k,v in pairs(data) do
    new_item[k] = v
   end
   add(items, new_item)
@@ -103,6 +153,7 @@ function _draw()
 
  cursor(4,4)
  color(8)
+ camera()
  for txt in all(debug) do
   print(txt)
  end
@@ -122,10 +173,12 @@ function startgame()
   items={}
   float={}
   enviro={}
+  inventory={}
 
   zel_init()
 
   player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, 8)
+  zel_spawn(zgetar())
 
   _upd=update_game
   _drw=draw_game
