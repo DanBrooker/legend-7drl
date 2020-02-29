@@ -56,6 +56,12 @@ function gsetp(point, val)
   gset(point[1], point[2], val)
 end
 
+function zgetar()
+  local i, j = flr(player.x / 9) + 1, flr(player.y / 9) + 1
+  debug[1] = i .. "," .. j
+  return zgetr(i,j)
+end
+
 function zgetr(i,j)
   return rooms[zindex(i,j)]
 end
@@ -66,6 +72,26 @@ end
 
 function zindex(i,j)
   return (i-1)*s+(j-1)+1
+end
+
+function zel_spawn(room)
+  room.spawn = true
+
+  if room.g == 'e' then
+    -- do nothing
+    item_create(room.left+2, room.top+2, randa(t_weapons))
+    item_create(room.left+4, room.top+4, randa(t_items))
+  elseif room.g == 'b' then
+    entity_create(room.left+2, room.top+2, 48, 8)
+  elseif room.g == 't' then
+    item_create(room.left+2, room.top+2, randa(t_weapons))
+  elseif room.g == 's' then
+    item_create(room.left+2, room.top+2, randa(t_items))
+  elseif room.g == 'k' then
+    item_create(room.left+2, room.top+2, t_key)
+  else
+
+  end
 end
 
 grid = {}
@@ -284,22 +310,24 @@ function zel_generate()
 
       --if i == flr(rs/2) then
         door = 1
-        if ggetp(a) == 'l' then
-          door = 8
-        elseif ggetp(b) == 's' then
-          -- mset(x,y, 1)
-        else
-          if dx == 1 then
-            door = t_door_r
-          elseif dx == -1 then
-            door = t_door_l
-          elseif dy == 1 then
-            door = t_door_b
-          else -- dy == -1
-            door = t_door_t
-          end
-        end
-        mset(x,y, door)
+      if dx == 1 then
+        door = t_door_r
+      elseif dx == -1 then
+        door = t_door_l
+      elseif dy == 1 then
+        door = t_door_b
+      else -- dy == -1
+        door = t_door_t
+      end
+
+
+      if ggetp(a) == 'l' then
+        door += 1
+      elseif ggetp(b) == 's' then
+        -- mset(x,y, 1)
+        door -= 1
+      end
+      mset(x,y, door)
       --else
         --mset(y,x, 17)
       --end
@@ -317,6 +345,8 @@ function zel_generate()
         bottom=y+rs,
         right=x+rs,
         g=g,
+        spawn=false,
+        clear=false,
         index=zindex(i,j)
       }
       add(rooms, room)

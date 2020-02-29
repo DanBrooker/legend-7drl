@@ -12,6 +12,6 @@ function dofloats()
   end
 end
 
-function drawfloat(f)
+function draw_float(f)
   oprint8(f.txt,f.x,f.y,f.c,0)
 end

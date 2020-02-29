@@ -3,11 +3,17 @@
 
 
 size=36
-dev=true
+dev=false
 
 t_player = 16
 t_bat = 32
 t_snake = 48
+
+t_key = 3
+t_gold=35
+t_weapons = {19,20,21,5,37,53}
+t_items = {4, 36, 51, 52}
+
 t_stairs = 58
 t_wall_t = 12
 t_wall_b = 44
@@ -56,6 +62,24 @@ function entity_create(x, y, spr, col, args)
   add(entities, new_entity)
   return new_entity
 end
+function item_create(x,y, spr, args)
+  local new_item = {
+   id = id,
+   name = "item" .. x .. "x" .. y,
+   x = x,
+   y = y,
+   spr=spr,
+   col = col or 10,
+   outline = false,
+   flash = 0,
+   flip=false
+  }
+  for k,v in pairs(args or {}) do
+   new_item[k] = v
+  end
+  add(items, new_item)
+  return new_item
+end
 
 function _init()
  t=0
@@ -67,7 +91,7 @@ function _init()
  startgame()
 end
 
-function _update()
+function _update60()
  t+=1
  _upd()
  dofloats()

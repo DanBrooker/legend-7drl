@@ -50,10 +50,10 @@ function do_shake()
 
  -- local x, y = flr(player.x / 8) * 8, flr(player.y / 8) * 8
 
- local i, j = flr(player.x / 9) + 1, flr(player.y / 9) + 1
- debug[1] = i .. "," .. j
- room = zgetr(i,j)
- debug[2] = to_s(room)
+ -- local i, j = flr(player.x / 9) + 1, flr(player.y / 9) + 1
+ -- debug[1] = i .. "," .. j
+ room = zgetar()
+ -- debug[2] = to_s(room)
 
  if room then
    x, y = room.left , room.top

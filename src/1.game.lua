@@ -3,8 +3,6 @@ function update_game()
    for mob in all(mobs) do
      update_mob(mob)
    end
-  --wfc_observe()
-  --wfc_propagate()
 end
 
 function draw_game()
@@ -15,10 +13,11 @@ function draw_game()
  map(0, 0, 0,0, size, size)
  clip()
 
+ -- foreach(enviro,draw_enviro)
+ foreach(items,item_draw)
  foreach(entities,entity_draw)
- --foreach(enviro,draw_enviro)
- --foreach(particles,draw_part)
- -- foreach(float, draw_float)
+ -- foreach(particles,draw_part)
+ foreach(float, draw_float)
  if dev then
   minimap_draw()
   zel_draw()
@@ -39,6 +38,19 @@ function update_mob(mob)
 end
 
 function update_end_turn()
+
+ room = zgetar()
+ if not room.spawn then
+   zel_spawn(room)
+ end
+
+ item = item_at(player.x, player.y)
+ if item then
+   del(items, item)
+   -- addfloat('item get',player.x * 8, player.y * 8, 9)
+   addfloat('item get', player.x * 8, player.y * 8, 2)
+ end
+
  for entity in all(entities) do
    entity.mov = nil
    local tile = mget(entity.x,entity.y)
@@ -146,6 +158,21 @@ function entity_draw(self)
  --if (self.linked) draws(12, x, y, 0, false)
 end
 
+function item_draw(self)
+ local col = self.col
+ -- if self.flash>0 then
+ --  self.flash-=1
+ --  col=7
+ -- end
+ local frame = self.spr -- self.stun != 0 and self.ani[1] or getframe(self.ani)
+ local x, y = self.x*8, self.y*8
+ drawspr(frame, x, y, col, self.flp, self.flash > 0, self.outline)
+
+ --if (self.stun !=0) draws(10, x, y, 0, false)
+ --if (self.roots !=0) draws(11, x, y, 0, false)
+ --if (self.linked) draws(12, x, y, 0, false)
+end
+
 function getframe(ani)
  return ani[flr(t/15)%#ani+1]
 end
@@ -208,12 +235,20 @@ function walkable(x, y, mode)
  return floor
 end
 
-function entity_at(x,y)
- for m in all(entities) do
-  if m.x==x and m.y==y then
-   return m
+function blank_at(x,y, array)
+  for m in all(array) do
+   if m.x==x and m.y==y then
+    return m
+   end
   end
- end
+end
+
+function entity_at(x,y)
+  return blank_at(x,y, entities)
+end
+
+function item_at(x,y)
+  return blank_at(x,y, items)
 end
 
 function mobwalk(mb,dx,dy)
