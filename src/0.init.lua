@@ -13,7 +13,11 @@ t_wall_t = 12
 t_wall_b = 44
 t_wall_l = 27
 t_wall_r = 29
-t_floor = {9,10,25,26,41,42}
+t_door_t = 7
+t_door_b = 23
+t_door_l = 39
+t_door_r = 55
+t_floor = {9,10,25,26,41} --,57, 42}
 
 id=0
 function entity_create(x, y, spr, col, args)
@@ -31,7 +35,7 @@ function entity_create(x, y, spr, col, args)
    hp = 3,
    flip = false,
    col = col or 10,
-   outline = 0,
+   outline = false,
    ani = {spr, spr+1},
    attackani = { spr+2, spr+3 },
    range = 8,

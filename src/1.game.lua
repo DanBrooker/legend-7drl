@@ -197,7 +197,7 @@ function walkable(x, y, mode)
  if(dev) return true
 
  local mode = mode or ""
- local floor = not fget(mget(x,y), 7)
+ local floor = not fget(mget(x,y), 0)
  -- TODO improve this
  if mode == "entities" then
   if (floor) return entity_at(x,y) == nil

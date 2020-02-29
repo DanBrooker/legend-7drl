@@ -283,14 +283,23 @@ function zel_generate()
       y = a[2] * rs - rs/2 + (i*dy)
 
       --if i == flr(rs/2) then
-
+        door = 1
         if ggetp(a) == 'l' then
-          mset(x,y, 36)
+          door = 8
         elseif ggetp(b) == 's' then
-          mset(x,y, 18)
+          -- mset(x,y, 1)
         else
-          mset(x,y, 17)
+          if dx == 1 then
+            door = t_door_r
+          elseif dx == -1 then
+            door = t_door_l
+          elseif dy == 1 then
+            door = t_door_b
+          else -- dy == -1
+            door = t_door_t
+          end
         end
+        mset(x,y, door)
       --else
         --mset(y,x, 17)
       --end

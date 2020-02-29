@@ -46,9 +46,20 @@ function do_shake()
 
  --local rs = size/s
  --local x, y = flr(player.x / rs) * rs, flr(player.y / rs) * rs
- local x, y = flr(player.x / 8) * 8, flr(player.y / 8) * 8
---- x, y = x*8, y*8
- x, y = x*rs - 32, y*rs - 32
+
+
+ -- local x, y = flr(player.x / 8) * 8, flr(player.y / 8) * 8
+
+ local i, j = flr(player.x / 9) + 1, flr(player.y / 9) + 1
+ debug[1] = i .. "," .. j
+ room = zgetr(i,j)
+ debug[2] = to_s(room)
+
+ if room then
+   x, y = room.left , room.top
+  end
+
+ x, y = x*8 - 32, y*8 - 32
 
  --x,y = x%8
  camera(x + shakex, y + shakey)
