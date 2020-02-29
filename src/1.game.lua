@@ -86,7 +86,9 @@ function update_end_turn()
    entity.mov = nil
    local tile = mget(entity.x,entity.y)
    if tile == t_stairs and entity == player then
-     mapgen(lvl + 1)
+     depth += 1
+     zel_generate()
+     player.x, player.y = start[1] * 8 - 4, start[2] * 8 -4
    --elseif fget(tile, 5) then
     -- tip = 'watch your step'
     --if (not entity.flying) dmg(entity, 2, 'the void')

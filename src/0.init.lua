@@ -168,6 +168,7 @@ function startgame()
   shake=0
   shakex=0
   shakey=0
+  depth=1
 
   entities={}
   mobs={}

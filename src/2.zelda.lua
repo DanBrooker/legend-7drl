@@ -87,6 +87,7 @@ function zel_spawn(room)
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
     entity_create(room.left+2, room.top+2, 48, 8)
+    mset(room.left+2, room.top+2, t_stairs)
   elseif room.g == 't' then
     item_create(room.left+2, room.top+2, randa(t_weapons))
   elseif room.g == 's' then
@@ -100,9 +101,10 @@ end
 
 grid = {}
 rooms = {}
-zel_active = -1
+-- zel_active = -1
 function zel_generate()
   grid = {}
+  rooms = {}
   edges = {}
   s = 4
   rs = flr(size/s)
@@ -363,13 +365,13 @@ function zel_generate()
       add(rooms, room)
       if g != 'h' and g != 0 then
 
-        if g == 'e' then
-          zel_active = room.index
-          log("player room")
-          log(zel_active)
-          log(i .. ',' .. j)
-          log(room)
-        end
+        -- if g == 'e' then
+        --   zel_active = room.index
+        --   log("player room")
+        --   log(zel_active)
+        --   log(i .. ',' .. j)
+        --   log(room)
+        -- end
 
         draw_room(x, y)
       end
