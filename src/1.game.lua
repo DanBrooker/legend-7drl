@@ -29,15 +29,25 @@ function draw_game()
 end
 
 function draw_inventory()
-  local i = 2
+  local j = 0
   for item in all(inventory) do
-    drawspr(item.spr, 120, i, item.col, false, false, true)
-    i += 8
+    drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
+    j += 8
   end
 end
 
 function draw_health()
-
+  -- rectfill(0, 0, 11, 22, 0)
+  local hearts = ""
+  for i=1,player.hp do
+   hearts = hearts .. "\x87"
+  end
+  print(hearts, 1, 1, 8)
+  local armour = ""
+  for i=1,player.arm do
+   armour = armour .. "\x87"
+  end
+  print(armour, 1, 10, 6)
 end
 
 function draw_armour()
@@ -195,7 +205,7 @@ function item_draw(self)
  -- end
  local frame = self.spr -- self.stun != 0 and self.ani[1] or getframe(self.ani)
  local x, y = self.x*8, self.y*8
- drawspr(frame, x, y, col, false, false, self.outline)
+ drawspr(frame, x, y, col, false, false, true)
 
  --if (self.stun !=0) draws(10, x, y, 0, false)
  --if (self.roots !=0) draws(11, x, y, 0, false)

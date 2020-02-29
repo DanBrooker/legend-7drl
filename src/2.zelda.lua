@@ -31,9 +31,9 @@ function zel_draw()
 
       local room = zgetr(i,j)
       if room == zgetar() then
-        rect(room.left+1, room.top+1, room.right-2, room.bottom-2, 11)
+        rect(room.left+1 + 50, room.top+1, room.right-2 + 50, room.bottom-2, 11)
       elseif room.spawn then
-        rect(room.left+1, room.top+1, room.right-2, room.bottom-2, 7)
+        rect(room.left+1 + 50, room.top+1, room.right-2 + 50, room.bottom-2, 7)
       end
     end
   end
