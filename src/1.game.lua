@@ -24,7 +24,7 @@ function draw_game()
   camera()
   draw_inventory()
   draw_health()
-  draw_armour()
+  draw_stats()
   zel_draw()
 end
 
@@ -36,6 +36,13 @@ function draw_inventory()
   end
 end
 
+function draw_stats()
+  cursor(2, 20)
+  print("atk " .. player.atk)
+  cursor(2, 28)
+  if (gold > 0) print("gold " .. gold)
+end
+
 function draw_health()
   -- rectfill(0, 0, 11, 22, 0)
   local hearts = ""
@@ -44,17 +51,14 @@ function draw_health()
   end
   print(hearts, 1, 1, 8)
   local armour = ""
-  for i=1,player.arm do
+  for i=1,player.def do
    armour = armour .. "\x87"
   end
   print(armour, 1, 10, 6)
 end
 
-function draw_armour()
-
-end
-
 function update_player(player)
+  if (player.hp <= 0) gameover()
   local endturn = input(getbutt())
 
   if endturn then
@@ -67,6 +71,34 @@ function update_mob(mob)
 
 end
 
+function pickup_item(item)
+  del(items, item)
+
+  if item.type == 'g' then
+    gold += item.amount
+    addfloat("+" .. item.amount .. ' gold', player.x * 8, player.y * 8, 9)
+    return
+  elseif item.atk then
+    local atk = player.atk
+    local dif = item.atk - atk
+    local pos = dif > 0 and ' +' or ' '
+
+    addfloat(item.name .. pos .. dif .. 'atk', player.x * 8, player.y * 8, 7)
+
+    player.atk = item.atk or atk
+  elseif item.hp then
+    local hp = player.hp
+    local dif = item.hp - hp
+    local pos = dif > 0 and ' +' or ' '
+
+    addfloat(item.name .. pos .. dif .. 'hp', player.x * 8, player.y * 8, 7)
+
+    player.hp = item.hp or hp
+  end
+
+  add(inventory, item)
+end
+
 function update_end_turn()
 
  room = zgetar()
@@ -75,12 +107,7 @@ function update_end_turn()
  end
 
  item = item_at(player.x, player.y)
- if item then
-   del(items, item)
-   add(inventory, item)
-   -- addfloat('item get',player.x * 8, player.y * 8, 9)
-   addfloat(item.name, player.x * 8, player.y * 8, 2)
- end
+ if (item) pickup_item(item)
 
  for entity in all(entities) do
    entity.mov = nil
@@ -91,12 +118,12 @@ function update_end_turn()
      player.x, player.y = start[1] * 8 - 4, start[2] * 8 -4
    --elseif fget(tile, 5) then
     -- tip = 'watch your step'
-    --if (not entity.flying) dmg(entity, 2, 'the void')
+    --if (not entity.flying) atk(entity, 2, 'the void')
    else
     --local env = env_at(entity.x,entity.y)
     --if env then
      ---- add(debug, entity.name .. "=" .. env.type)
-     --if (entity.name != env.type) dmg(entity, 1, env.name)
+     --if (entity.name != env.type) atk(entity, 1, env.name)
     --end
    end
   if (entity.hp <= 0) then
@@ -112,18 +139,32 @@ function update_end_turn()
 end
 
 function on_death(ent)
-  if ent == player then
-    gameover()
-  else
+  if ent != player then
     del(entities, ent)
+    if rand(0,10) == 1 then
+      drop_item(ent.x, ent.y)
+    end
   end
+end
+
+function drop_item(x,y)
+  local random = rand(1,4)
+  local item = "i5"
+  if random == 1 then
+    item = randa(t_items)
+  elseif random == 2 then
+    item = randa(t_weapons)
+  elseif random == 3 then
+    item = "g5"
+  end
+  item_create({x,y}, item)
 end
 
 function update_ai()
   --buffer()
 
   for entity in all(entities) do
-   if entity != player then
+   if entity != player and entity.hp > 0 then
     if entity.stun > 0 then
      entity.stun -= 1
     else
@@ -131,7 +172,9 @@ function update_ai()
      --if entity.boss then
       --boss_action(entity)
      --else
-      ai_action(entity)
+      if entity.ai then
+        entity.ai(entity)
+      end
      --end
     end
     if (entity.roots > 0) entity.roots -= 1
@@ -156,7 +199,7 @@ function move_towards(entity)
   local dist = distance(x, y, player.x, player.y)
   if dist == 0 then
    mobbump(entity, dx, dy)
-   dmg(player, entity.dmg, entity.name)
+   atk(player, entity.atk, entity.name)
    return
   elseif walkable(x, y, "entities") then
    if (entity.roots > 0) return
@@ -172,9 +215,11 @@ function move_towards(entity)
  end
 end
 
-function dmg(entity, amount, cause)
- if amount < 0 then
-  addfloat('+'.. abs(amount), entity.x * 8, entity.y * 8, 11)
+function atk(entity, amount, cause)
+  amount -= entity.def
+ if amount <= 0 then
+   return
+  -- addfloat('+'.. abs(amount), entity.x * 8, entity.y * 8, 11)
  else
   addfloat('-'.. amount, entity.x * 8, entity.y * 8, 8)
  end
@@ -273,11 +318,12 @@ function moveplayer(dir)
     -- mobwalk(player,dx,dy)
   elseif entity_at(destx,desty) then
     entity = entity_at(destx,desty)
-    dmg(entity, player.dmg, player.name)
+    atk(entity, player.atk, player.name)
+    mobbump(player,dx,dy)
   else
   -- sfx(63)
     mobbump(player,dx,dy)
-  --animate()
+    -- return false
   end
   return true
 end

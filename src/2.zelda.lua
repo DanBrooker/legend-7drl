@@ -78,25 +78,58 @@ function zindex(i,j)
 end
 
 function zel_spawn(room)
+  -- log("zel_spawn")
   room.spawn = true
+
+  rnd_pos = function()
+    local l,r,t,b = room.left+1,room.right-2,room.top+1,room.bottom-2
+    local x, y
+    local i = 0
+    repeat
+      x, y = rand(l,r), rand(t,b)
+      i += 1
+      -- log(i)
+    until walkable(x,y, "entities") or i > 10
+    -- log("room")
+    -- log(room)
+    if(i>10) x,y=-1,-1
+    log(x .. ',' .. y)
+    return {x,y}
+  end
 
   if room.g == 'e' then
     -- do nothing
-    item_create(room.left+2, room.top+2, randa(t_weapons))
+    item_create(rnd_pos(), randa(t_weapons))
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
-    entity_create(room.left+2, room.top+2, 48, 8)
-    mset(room.left+2, room.top+2, t_stairs)
+    entity_create(rnd_pos(), 48, 8)
+    local down = rnd_pos()
+    mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
-    item_create(room.left+2, room.top+2, randa(t_weapons))
+    if rand(0,1) == 0 then
+      item_create(rnd_pos(), randa(t_weapons))
+    else
+      item_create(rnd_pos(), randa(t_items))
+    end
   elseif room.g == 's' then
-    item_create(room.left+2, room.top+2, randa(t_items))
+    item_create(rnd_pos(), randa(t_items))
   elseif room.g == 'k' then
-    item_create(room.left+2, room.top+2, randa(t_key))
+    item_create(rnd_pos(), randa(t_key))
+    -- chance of mini boss??
+  elseif room.g == 'l' then
+    -- item_create(room.left+2, room.top+2, randa(t_key))
+    -- chance of mini boss??
   else
-
+    for i = 1,(room.g+0) do
+      local pos = rnd_pos()
+      entity_create(pos[1], pos[2], 32, {hp=1})
+    end
   end
+
+  -- random add heal or food
+  item_create(rnd_pos(), randa(t_heals))
+  item_create(rnd_pos(), randa(t_gold))
 end
 
 grid = {}
@@ -109,16 +142,16 @@ function zel_generate()
   s = 4
   rs = flr(size/s)
 
-  log_grid = function(name)
-    log("\n--"..name.."--")
-    for j = 1,s do
-      str = ""
-      for i = 1,s do
-        str = str .. grid[i][j]
-      end
-      log(str)
-    end
-  end
+  -- log_grid = function(name)
+  --   log("\n--"..name.."--")
+  --   for j = 1,s do
+  --     str = ""
+  --     for i = 1,s do
+  --       str = str .. grid[i][j]
+  --     end
+  --     log(str)
+  --   end
+  -- end
 
   valid_grid = function()
     local zero = 0
@@ -129,8 +162,8 @@ function zel_generate()
         if (grid[i][j] == 0) zero += 1
       end
     end
-    log("required")
-    log(required)
+    -- log("required")
+    -- log(required)
 
     return #required == 0 and zero <= 3
   end
@@ -140,7 +173,7 @@ function zel_generate()
   end
 
   randp = function()
-    return {rand(1,s), rand(1,s)}
+    return {rand(1,s+1), rand(1,s+1)}
   end
 
   for i = 1,s do
@@ -155,25 +188,27 @@ function zel_generate()
   --grid[start[1]][start[2]] = 1
   gsetp(start, 1)
 
-  --log_grid("start")
+  -- log_grid("start")
 
   -- end room (boss)
   repeat
     boss = randp()
+    -- log("h" .. to_s(h))
   until empty(boss) and distancep(boss, start) > 3
   --grid[boss[1]][boss[2]] = 'b'
   gsetp(boss, 'b')
 
-  for i = 1,rand(3) do
+  for i = 1,rnd(3) do
     local h = {0,0}
     repeat
       h = randp()
+      log("h" .. to_s(h))
     until empty(h) and distancep(boss, h) > 1
     --grid[h[1]][h[2]] = 'h'
     gsetp(h, 'h')
   end
 
-  --log_grid("boss")
+  -- log_grid("boss")
 
   local bounds_func = function(n)
     return n[1] > 0 and n[1] <= s and n[2] > 0 and n[2] <= s
@@ -248,7 +283,7 @@ function zel_generate()
 
   end
 
-  log_grid("")
+  -- log_grid("")
   --
   --log("keys")
   for t in all(keys) do
@@ -265,7 +300,7 @@ function zel_generate()
   hidden = randa(keys)
   del(keys, hidden)
   --grid[hidden[1]][hidden[2]] = 's'
-  gsetp(hidden, 's')
+  if (hidden) gsetp(hidden, 's')
 
   --grid[boss[1]][boss[2]] = 'b'
   gsetp(boss, 'b')
@@ -279,7 +314,7 @@ function zel_generate()
 
   function draw_room(x,y, g)
     --log('room')
-
+    local once = false
     for i = 1,rs do
       for j = 1,rs do
         --if i == 0 or i == rs or j == 0 or j == rs then
@@ -294,15 +329,29 @@ function zel_generate()
           tile = t_wall_t
         elseif j == rs then
           tile = t_wall_b
-        -- elseif rand(1,20) == 1 then
-        --   -- entity_create(x+i, y+j, 1)
+        elseif i > 2 and i < rs-2 and j > 2 and j < rs-2 then
+          local random = rand(0,6)
+          if random > 0 and random < 3 then
+
+            if (random == 2 and not once) then
+              once = true
+              entity_create(x+i, y+j, 42, {def = 5, ai=noop, outline=false})
+            else
+              tile = 57
+            end
+          end
         end
         mset(x+i, y+j, tile)
       end
     end
+
+    -- random vases
+
+    -- random rocks
+
   end
 
-  log_grid("end")
+  -- log_grid("end")
 
   function add_door(a,b)
     local dx,dy = normalise(b[1]-a[1], b[2]-a[2])

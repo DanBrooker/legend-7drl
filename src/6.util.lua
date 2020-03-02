@@ -17,7 +17,7 @@ function to_s(any)
 end
 
 function rand(min, max)
- return flr(rnd(max)+min)
+ return flr(rnd(max-min)+min)
 end
 
 function randf(min, max)
@@ -63,4 +63,3 @@ end
 function log(thing)
   printh(to_s(thing))
 end
-

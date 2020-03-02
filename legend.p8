@@ -14,8 +14,9 @@ t_snake = 48
 
 t_key = {"k1"}
 t_gold = {"g1"}
-t_weapons = {"w1","w2","w3"}
-t_items = {"i1", "i2", "i3"}
+t_weapons = {"w1","w2","w3","w4","w5"}
+t_items = {"i1", "i2", "i3","i4",'i5',"g1"}
+t_heals = {"i5"}
 
 t_stairs = 58
 t_wall_t = 12
@@ -43,20 +44,32 @@ armoury = {
   w1 = {
     name = "dagger",
     type = "w",
-    dmg = 2,
+    atk = 2,
     spr = 19
   },
   w2 = {
     name = "sword",
     type = "w",
-    dmg = 3,
+    atk = 3,
     spr = 20
   },
   w3 = {
     name = "great sword",
     type = "w",
-    dmg = 4,
+    atk = 4,
     spr = 20
+  },
+  w4 = {
+    name = "wand",
+    type = "w",
+    ratk = 1,
+    spr = 5
+  },
+  w5 = {
+    name = "bow",
+    type = "w",
+    ratk = 2,
+    spr = 21
   },
   i1 = {
     name = "ring",
@@ -74,59 +87,63 @@ armoury = {
     armour = 1,
     spr = 52
   },
-  i3 = {
+  i4 = {
     name = "bomb",
     type = "i",
     spr = 18
+  },
+  i5 = {
+    name = "health potion",
+    type = "p",
+    dhp = 2,
+    spr=2
   }
 }
 
 id=0
-function entity_create(x, y, spr, col, args)
+function entity_create(x, y, spr, args)
+  -- log(args)
   id += 1
   local new_entity = {
    id = id,
-   name = "ent" .. x .. "x" .. y,
    x = x,
    y = y,
    mov = nil,
-   --w = 8,
-   --h = 8,
    ox = 0,
    oy = 0,
-   hp = 3,
-   arm = 1,
-   flip = false,
-   col = col or 10,
+   ai = ai_action,
+
+   -- col = col or 10,
    outline = true,
-   ani = {spr, spr+1},
-   attackani = { spr+2, spr+3 },
-   range = 8,
-   sight = 64,
+   ani = {spr},
    flash = 0,
+
    stun=0,
    roots=0,
-   dmg=1,
-   --speed = .2,
-   flying = false,
-   attack = 1,
-   --attackcooldown = 30,
-   --animation = 'idle'
+   poison=0,
+   flying=false,
+   stealth=0,
+
+   hp=3,
+   def=0,
+   atk=1,
+   ratk=0,
   }
   for k,v in pairs(args or {}) do
-   new_entity[k] = v
+    -- log(k .. "=" .. to_s(v))
+    new_entity[k] = v
   end
   add(entities, new_entity)
   return new_entity
 end
-function item_create(x, y, key)
+function item_create(pos, key)
   -- log(key)
   local data = armoury[key]
   -- log(data)
   local new_item = {
    id = id,
-   x = x,
-   y = y
+   x = pos[1],
+   y = pos[2]
   }
   for k,v in pairs(data) do
    new_item[k] = v
@@ -164,6 +181,7 @@ function _draw()
 end
 
 function startgame()
+  log("startgame")
   --fading
   --fadeperc=1
 
@@ -171,7 +189,9 @@ function startgame()
   shake=0
   shakex=0
   shakey=0
+
   depth=1
+  gold=0
 
   entities={}
   mobs={}
@@ -182,11 +202,67 @@ function startgame()
 
   zel_init()
 
-  player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, 8)
+  player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, {ai = noop})
   zel_spawn(zgetar())
 
   _upd=update_game
   _drw=draw_game
+end
+
+function noop()
+end
+
+function gameover()
+  -- log('set gameover')
+  _upd=update_gameover
+  _drw=draw_gameover
+end
+
+function update_gameover()
+  if getbutt() >= 0 then
+    -- log("restart game")
+    startgame()
+  end
+end
+
+function draw_gameover()
+  cls(0)
+  color(8)
+  print('gameover')
+  print('')
+  color(9)
+  print('you died')
+  color(10)
+  print('on depth ' .. depth)
+  color(11)
+  print('with ' .. gold .. ' gold')
+  color(12)
+  print('and ' .. #inventory .. ' items')
+  print('')
+  color(13)
+  print('press any key to restart')
+end
+
+function win_game()
+  _upd=update_gamewin
+  _drw=draw_gamewin
+end
+
+function update_gamewin()
+  if getbutt() >= 0 then
+    -- log("restart game")
+    startgame()
+  end
+end
+
+function draw_gamewin()
+  cls(0)
+
+  print 'you win!'
+  print('with ' .. gold .. ' gold')
+  print('')
+  color(13)
+  print('press any key to restart')
 end
 -->8
 --game
@@ -216,7 +292,7 @@ function draw_game()
   camera()
   draw_inventory()
   draw_health()
-  draw_armour()
+  draw_stats()
   zel_draw()
 end
 
@@ -228,6 +304,13 @@ function draw_inventory()
   end
 end
 
+function draw_stats()
+  cursor(2, 20)
+  print("atk " .. player.atk)
+  cursor(2, 28)
+  if (gold > 0) print("gold " .. gold)
+end
+
 function draw_health()
   -- rectfill(0, 0, 11, 22, 0)
   local hearts = ""
@@ -236,17 +319,14 @@ function draw_health()
   end
   print(hearts, 1, 1, 8)
   local armour = ""
-  for i=1,player.arm do
+  for i=1,player.def do
    armour = armour .. "\x87"
   end
   print(armour, 1, 10, 6)
 end
 
-function draw_armour()
-
-end
-
 function update_player(player)
+  if (player.hp <= 0) gameover()
   local endturn = input(getbutt())
 
   if endturn then
@@ -259,20 +339,45 @@ function update_mob(mob)
 
 end
 
+function pickup_item(item)
+  del(items, item)
+
+  if item.type == 'g' then
+    gold += item.amount
+    addfloat("+" .. item.amount .. ' gold', player.x * 8, player.y * 8, 9)
+    return
+  elseif item.atk then
+    local atk = player.atk
+    local dif = item.atk - atk
+    local pos = dif > 0 and ' +' or ' '
+
+    addfloat(item.name .. pos .. dif .. 'atk', player.x * 8, player.y * 8, 7)
+
+    player.atk = item.atk or atk
+  elseif item.hp then
+    local hp = player.hp
+    local dif = item.hp - hp
+    local pos = dif > 0 and ' +' or ' '
+
+    addfloat(item.name .. pos .. dif .. 'hp', player.x * 8, player.y * 8, 7)
+
+    player.hp = item.hp or hp
+  end
+
+  add(inventory, item)
+end
+
 function update_end_turn()
 
  room = zgetar()
  if not room.spawn then
+   -- move player into room
+   -- lock doors
    zel_spawn(room)
  end
 
  item = item_at(player.x, player.y)
- if item then
-   del(items, item)
-   add(inventory, item)
-   -- addfloat('item get',player.x * 8, player.y * 8, 9)
-   addfloat(item.name, player.x * 8, player.y * 8, 2)
- end
+ if (item) pickup_item(item)
 
  for entity in all(entities) do
    entity.mov = nil
@@ -283,12 +388,12 @@ function update_end_turn()
      player.x, player.y = start[1] * 8 - 4, start[2] * 8 -4
    --elseif fget(tile, 5) then
     -- tip = 'watch your step'
-    --if (not entity.flying) dmg(entity, 2, 'the void')
+    --if (not entity.flying) atk(entity, 2, 'the void')
    else
     --local env = env_at(entity.x,entity.y)
     --if env then
      ---- add(debug, entity.name .. "=" .. env.type)
-     --if (entity.name != env.type) dmg(entity, 1, env.name)
+     --if (entity.name != env.type) atk(entity, 1, env.name)
     --end
    end
   if (entity.hp <= 0) then
@@ -304,18 +409,32 @@ function update_end_turn()
 end
 
 function on_death(ent)
-  if ent == player then
-    gameover()
-  else
+  if ent != player then
     del(entities, ent)
+    if rand(0,10) == 1 then
+      drop_item(ent.x, ent.y)
+    end
   end
+end
+
+function drop_item(x,y)
+  local random = rand(1,4)
+  local item = "i5"
+  if random == 1 then
+    item = randa(t_items)
+  elseif random == 2 then
+    item = randa(t_weapons)
+  elseif random == 3 then
+    item = "g5"
+  end
+  item_create({x,y}, item)
 end
 
 function update_ai()
   --buffer()
 
   for entity in all(entities) do
-   if entity != player then
+   if entity != player and entity.hp > 0 then
     if entity.stun > 0 then
      entity.stun -= 1
     else
@@ -323,7 +442,9 @@ function update_ai()
      --if entity.boss then
       --boss_action(entity)
      --else
-      ai_action(entity)
+      if entity.ai then
+        entity.ai(entity)
+      end
      --end
     end
     if (entity.roots > 0) entity.roots -= 1
@@ -348,7 +469,7 @@ function move_towards(entity)
   local dist = distance(x, y, player.x, player.y)
   if dist == 0 then
    mobbump(entity, dx, dy)
-   dmg(player, entity.dmg, entity.name)
+   atk(player, entity.atk, entity.name)
    return
   elseif walkable(x, y, "entities") then
    if (entity.roots > 0) return
@@ -364,9 +485,11 @@ function move_towards(entity)
  end
 end
 
-function dmg(entity, amount, cause)
- if amount < 0 then
-  addfloat('+'.. abs(amount), entity.x * 8, entity.y * 8, 11)
+function atk(entity, amount, cause)
+  amount -= entity.def
+ if amount <= 0 then
+   return
+  -- addfloat('+'.. abs(amount), entity.x * 8, entity.y * 8, 11)
  else
   addfloat('-'.. amount, entity.x * 8, entity.y * 8, 8)
  end
@@ -465,11 +588,12 @@ function moveplayer(dir)
     -- mobwalk(player,dx,dy)
   elseif entity_at(destx,desty) then
     entity = entity_at(destx,desty)
-    dmg(entity, player.dmg, player.name)
+    atk(entity, player.atk, player.name)
+    mobbump(player,dx,dy)
   else
   -- sfx(63)
     mobbump(player,dx,dy)
-  --animate()
+    -- return false
   end
   return true
 end
@@ -647,25 +771,58 @@ function zindex(i,j)
 end
 
 function zel_spawn(room)
+  -- log("zel_spawn")
   room.spawn = true
+
+  rnd_pos = function()
+    local l,r,t,b = room.left+1,room.right-2,room.top+1,room.bottom-2
+    local x, y
+    local i = 0
+    repeat
+      x, y = rand(l,r), rand(t,b)
+      i += 1
+      -- log(i)
+    until walkable(x,y, "entities") or i > 10
+    -- log("room")
+    -- log(room)
+    if(i>10) x,y=-1,-1
+    log(x .. ',' .. y)
+    return {x,y}
+  end
 
   if room.g == 'e' then
     -- do nothing
-    item_create(room.left+2, room.top+2, randa(t_weapons))
+    item_create(rnd_pos(), randa(t_weapons))
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
-    entity_create(room.left+2, room.top+2, 48, 8)
-    mset(room.left+2, room.top+2, t_stairs)
+    entity_create(rnd_pos(), 48, 8)
+    local down = rnd_pos()
+    mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
-    item_create(room.left+2, room.top+2, randa(t_weapons))
+    if rand(0,1) == 0 then
+      item_create(rnd_pos(), randa(t_weapons))
+    else
+      item_create(rnd_pos(), randa(t_items))
+    end
   elseif room.g == 's' then
-    item_create(room.left+2, room.top+2, randa(t_items))
+    item_create(rnd_pos(), randa(t_items))
   elseif room.g == 'k' then
-    item_create(room.left+2, room.top+2, randa(t_key))
+    item_create(rnd_pos(), randa(t_key))
+    -- chance of mini boss??
+  elseif room.g == 'l' then
+    -- item_create(room.left+2, room.top+2, randa(t_key))
+    -- chance of mini boss??
   else
-
+    for i = 1,(room.g+0) do
+      local pos = rnd_pos()
+      entity_create(pos[1], pos[2], 32, {hp=1})
+    end
   end
+
+  -- random add heal or food
+  item_create(rnd_pos(), randa(t_heals))
+  item_create(rnd_pos(), randa(t_gold))
 end
 
 grid = {}
@@ -678,16 +835,16 @@ function zel_generate()
   s = 4
   rs = flr(size/s)
 
-  log_grid = function(name)
-    log("\n--"..name.."--")
-    for j = 1,s do
-      str = ""
-      for i = 1,s do
-        str = str .. grid[i][j]
-      end
-      log(str)
-    end
-  end
+  -- log_grid = function(name)
+  --   log("\n--"..name.."--")
+  --   for j = 1,s do
+  --     str = ""
+  --     for i = 1,s do
+  --       str = str .. grid[i][j]
+  --     end
+  --     log(str)
+  --   end
+  -- end
 
   valid_grid = function()
     local zero = 0
@@ -698,8 +855,8 @@ function zel_generate()
         if (grid[i][j] == 0) zero += 1
       end
     end
-    log("required")
-    log(required)
+    -- log("required")
+    -- log(required)
 
     return #required == 0 and zero <= 3
   end
@@ -709,7 +866,7 @@ function zel_generate()
   end
 
   randp = function()
-    return {rand(1,s), rand(1,s)}
+    return {rand(1,s+1), rand(1,s+1)}
   end
 
   for i = 1,s do
@@ -724,25 +881,27 @@ function zel_generate()
   --grid[start[1]][start[2]] = 1
   gsetp(start, 1)
 
-  --log_grid("start")
+  -- log_grid("start")
 
   -- end room (boss)
   repeat
     boss = randp()
+    -- log("h" .. to_s(h))
   until empty(boss) and distancep(boss, start) > 3
   --grid[boss[1]][boss[2]] = 'b'
   gsetp(boss, 'b')
 
-  for i = 1,rand(3) do
+  for i = 1,rnd(3) do
     local h = {0,0}
     repeat
       h = randp()
+      log("h" .. to_s(h))
     until empty(h) and distancep(boss, h) > 1
     --grid[h[1]][h[2]] = 'h'
     gsetp(h, 'h')
   end
 
-  --log_grid("boss")
+  -- log_grid("boss")
 
   local bounds_func = function(n)
     return n[1] > 0 and n[1] <= s and n[2] > 0 and n[2] <= s
@@ -817,7 +976,7 @@ function zel_generate()
 
   end
 
-  log_grid("")
+  -- log_grid("")
   --
   --log("keys")
   for t in all(keys) do
@@ -834,7 +993,7 @@ function zel_generate()
   hidden = randa(keys)
   del(keys, hidden)
   --grid[hidden[1]][hidden[2]] = 's'
-  gsetp(hidden, 's')
+  if (hidden) gsetp(hidden, 's')
 
   --grid[boss[1]][boss[2]] = 'b'
   gsetp(boss, 'b')
@@ -848,7 +1007,7 @@ function zel_generate()
 
   function draw_room(x,y, g)
     --log('room')
-
+    local once = false
     for i = 1,rs do
       for j = 1,rs do
         --if i == 0 or i == rs or j == 0 or j == rs then
@@ -863,15 +1022,29 @@ function zel_generate()
           tile = t_wall_t
         elseif j == rs then
           tile = t_wall_b
-        -- elseif rand(1,20) == 1 then
-        --   -- entity_create(x+i, y+j, 1)
+        elseif i > 2 and i < rs-2 and j > 2 and j < rs-2 then
+          local random = rand(0,6)
+          if random > 0 and random < 3 then
+
+            if (random == 2 and not once) then
+              once = true
+              entity_create(x+i, y+j, 42, {def = 5, ai=noop, outline=false})
+            else
+              tile = 57
+            end
+          end
         end
         mset(x+i, y+j, tile)
       end
     end
+
+    -- random vases
+
+    -- random rocks
+
   end
 
-  log_grid("end")
+  -- log_grid("end")
 
   function add_door(a,b)
     local dx,dy = normalise(b[1]-a[1], b[2]-a[2])
@@ -1249,7 +1422,7 @@ function to_s(any)
 end
 
 function rand(min, max)
- return flr(rnd(max)+min)
+ return flr(rnd(max-min)+min)
 end
 
 function randf(min, max)
@@ -1298,12 +1471,12 @@ end
 __gfx__
 000000008090a0b000000000000000000000000000000000dddddd5ddddddd5ddddddd5d11111111111111115ddddd5ddddddd5d5ddddd550000000000000000
 00000000090a0b030000000000aaa0000000000000000000dddddd5dddd00d5dddd44d5d1555555115515551d5ddddd5dddddd5dd5dddd550000000000000000
-0000000090a0b0300000000000a0a0000000000000000400dddddd5ddd00005ddd44445d1555555115111551dd5ddddddddddd5ddd5dd5dd0000000000000000
-000000000a0b03010000000000aa0000000000000000400055dddd5550000005544444451555555111111151ddd5d55555555555ddd555550000000000000000
-00000000a0b0301000000000000aa0000008000000040000ddddddddd000000dd446666d1555555111111111dddd5dddddd5ddddddd55ddd0000000000000000
-000000000b03010200000000000a00000060600000400000ddddddddd000000dd444444d1155555115511111ddd5d5ddddd5dddddd55d5dd0000000000000000
-00000000b030102000000000000aa0000006000000000000ddddddddd000000dd446666d11155551155511115dd5dd5dddd5dddd55d5dd5d0000000000000000
-0000000003010205000000000000000000000000000000005555555550000005544444451111111111111111d5d5ddd55555555555d5ddd50000000000000000
+0000000090a0b0300004400000a0a0000000000000000400dddddd5ddd00005ddd44445d1555555115111551dd5ddddddddddd5ddd5dd5dd0000000000000000
+000000000a0b03010007700000aa0000000000000000400055dddd5550000005544444451555555111111151ddd5d55555555555ddd555550000000000000000
+00000000a0b0301000088000000aa0000008000000040000ddddddddd000000dd446666d1555555111111111dddd5dddddd5ddddddd55ddd0000000000000000
+000000000b03010200888800000a00000060600000400000ddddddddd000000dd444444d1155555115511111ddd5d5ddddd5dddddd55d5dd0000000000000000
+00000000b030102000888800000aa0000006000000000000ddddddddd000000dd446666d11155551155511115dd5dd5dddd5dddd55d5dd5d0000000000000000
+0000000003010205000880000000000000000000000000005555555550000005544444451111111111111111d5d5ddd55555555555d5ddd50000000000000000
 000000000000000000000000000000000000000000000000dddddd5dd000000dd666644d1111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
 000044000000440000000000000000000000000000040000dddddd5dd000000dd444444d1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
 0000ff000000ff0000000700000000000006000000704000dddddd5dd000000dd666644d11111111155551115555ddd50000000055555ddd0000000000000000
@@ -1312,23 +1485,62 @@ __gfx__
 00f044f000f044f000555500000600000006000000700400dddddddddd0000dddd4444dd1111111111111551ddd55555000000005ddd55550000000000000000
 000404000004040000555500006660000066600000704000ddd5ddddddd00dddddd44ddd1111111111111551ddd5ddd5000000005ddd5ddd0000000000000000
 0040040000400400000550000006000000060000000400005555555555555555555555551111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
-000000000000000000000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111111110d0115ddddd55dddddd5d5ddd5d5d0000000000000000
-006605000066050000000000000000000007000000000000ddd5ddd5ddd50000ddd544441313111110dddd01d5dddd55dddddd5dd5dd5dd50000000000000000
+000000000000000000000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111110000d0005ddddd55dddddd5d5ddd5d5d0000000000000000
+006605000066050000000000000000000007000000000000ddd5ddd5ddd50000ddd544441313111100dddd00d5dddd55dddddd5dd5dd5dd50000000000000000
 06600050066000500000000000000000007070000000080055ddddd55550000055544444131311110dddddd0dd5dd5dddddddd5ddd5d5ddd0000000000000000
-606060606060606000000000000aa0000700070000004000ddddddd5dd000000dd444444111111110dddddddddd5555555555555ddd5dddd0000000000000000
-00608680006086800000000000aaaa000070700000040000ddddddd5dd000000dd444646111111110dd0d0ddddd55dddddd5dddd555d5ddd0000000000000000
-00d6d66000d6d66000000000000aa0000007bb0007400000ddddd555ddd00000ddd44646111131310ddd0dd0dd55d5ddddd5ddddddddd5dd0000000000000000
-0dddd0000dddd00000000000000000000000bb0000700000ddd5ddd5ddd50000ddd546461111313110d0d0115585dd5dddd5dddd5ddddd5d0000000000000000
-055d5550055d555000000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111111111111155d5ddd555555555d5ddddd50000000000000000
-0000000000000000000000000000000000000000000000005ddd5ddd5ddd5ddd5ddd5ddd1110d011551111111102201100000000000000000000000000000000
-00bbb00000bbb000000000000000000000000000000000005ddd5ddd00005ddd64645ddd10dddd01551611111102201100000000000000000000000000000000
-00bb830000bb830000000000000000000000000000000c00555ddddd000000dd646444dd0dddddd0551616111102201100000000000000000000000000000000
-0003330000033300000000000000000000000000000040005ddddddd000000dd646444dd0ddddddd551616171022220100000000000000000000000000000000
-0033300000333000000000000000000000000000000400005ddddddd000000dd444444dd0ddddddd551616170222222000000000000000000000000000000000
-0bb350b00bb350b0000000000006660000666600074000005ddddd55000000554444445510ddddd0551616110222222000000000000000000000000000000000
-00bb505300bb5053000000000006060006066060007000005ddd5ddd00005ddd44445ddd11000001551611111022220100000000000000000000000000000000
+606060606060606000000000000aa0000700070000004000ddddddd5dd000000dd444444111111110dddddd5ddd5555555555555ddd5dddd0000000000000000
+00608680006086800000000000aaaa000070700000040000ddddddd5dd000000dd444646111111110dd5d5ddddd55dddddd5dddd555d5ddd0000000000000000
+00d6d66000d6d66000000000000aa0000007bb0007400000ddddd555ddd00000ddd446461111313105dd5d50dd55d5ddddd5ddddddddd5dd0000000000000000
+0dddd0000dddd00000000000000000000000bb0000700000ddd5ddd5ddd50000ddd546461111313100d5d5005585dd5dddd5dddd5ddddd5d0000000000000000
+055d5550055d555000000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111110000000055d5ddd555555555d5ddddd50000000000000000
+0000000000000000000000000000000000000000000000005ddd5ddd5ddd5ddd5ddd5ddd1111d111551111111102201100000000000000000000000000000000
+00bbb00000bbb000000000000000000000000000000000005ddd5ddd00005ddd64645ddd11dddd11551611111102201100000000000000000000000000000000
+00bb830000bb830000000000000000000000000000000c00555ddddd000000dd646444dd1dddddd1551616111102201100000000000000000000000000000000
+0003330000033300000000000000000000000000000040005ddddddd000000dd646444dd1ddddddd551616171022220100000000000000000000000000000000
+0033300000333000000000000000000000000000000400005ddddddd000000dd444444dd15dddddd551616170222222000000000000000000000000000000000
+0bb350b00bb350b0000000000006660000666600074000005ddddd55000000554444445511dd5dd1551616110222222000000000000000000000000000000000
+00bb505300bb5053000000000006060006066060007000005ddd5ddd00005ddd44445ddd11111111551611111022220100000000000000000000000000000000
 055bbb33055bbb33000000000006060000066000000000005ddd5ddd5ddd5ddd5ddd5ddd11111111551111111100001100000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+66000066000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60008006000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00040000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00494000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0804a480060806000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60080006060006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+66000066000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
 0000000000000000050000010101000000000000000000000500000100010000000000000000000005000101010100000000000000000000050100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-
