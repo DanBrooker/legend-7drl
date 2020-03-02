@@ -77,59 +77,60 @@ function zindex(i,j)
   return (i-1)*s+(j-1)+1
 end
 
+function rnd_pos(room)
+  local l,r,t,b = room.left+1,room.right-2,room.top+1,room.bottom-2
+  local x, y
+  local i = 0
+  repeat
+    x, y = rand(l,r), rand(t,b)
+    i += 1
+    -- log(i)
+  until walkable(x,y, "entities") or i > 10
+  -- log("room")
+  -- log(room)
+  if(i>10) x,y=-1,-1
+  -- log(x .. ',' .. y)
+  return {x,y}
+end
+
 function zel_spawn(room)
   -- log("zel_spawn")
   room.spawn = true
 
-  rnd_pos = function()
-    local l,r,t,b = room.left+1,room.right-2,room.top+1,room.bottom-2
-    local x, y
-    local i = 0
-    repeat
-      x, y = rand(l,r), rand(t,b)
-      i += 1
-      -- log(i)
-    until walkable(x,y, "entities") or i > 10
-    -- log("room")
-    -- log(room)
-    if(i>10) x,y=-1,-1
-    log(x .. ',' .. y)
-    return {x,y}
-  end
-
   if room.g == 'e' then
     -- do nothing
-    item_create(rnd_pos(), randa(t_weapons))
+    item_create(rnd_pos(room), randa(t_weapons))
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
-    entity_create(rnd_pos(), 48, 8)
-    local down = rnd_pos()
+    local boss = rnd_pos(room)
+    entity_create(boss[1],boss[2], 48)
+    local down = rnd_pos(room)
     mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
     if rand(0,1) == 0 then
-      item_create(rnd_pos(), randa(t_weapons))
+      item_create(rnd_pos(room), randa(t_weapons))
     else
-      item_create(rnd_pos(), randa(t_items))
+      item_create(rnd_pos(room), randa(t_items))
     end
   elseif room.g == 's' then
-    item_create(rnd_pos(), randa(t_items))
+    item_create(rnd_pos(room), randa(t_items))
   elseif room.g == 'k' then
-    item_create(rnd_pos(), randa(t_key))
+    item_create(rnd_pos(room), randa(t_key))
     -- chance of mini boss??
   elseif room.g == 'l' then
     -- item_create(room.left+2, room.top+2, randa(t_key))
     -- chance of mini boss??
   else
     for i = 1,(room.g+0) do
-      local pos = rnd_pos()
-      entity_create(pos[1], pos[2], 32, {hp=1})
+      local pos = rnd_pos(room)
+      entity_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=1})
     end
   end
 
   -- random add heal or food
-  item_create(rnd_pos(), randa(t_heals))
-  item_create(rnd_pos(), randa(t_gold))
+  item_create(rnd_pos(room), randa(t_heals))
+  item_create(rnd_pos(room), randa(t_gold))
 end
 
 grid = {}
@@ -330,7 +331,7 @@ function zel_generate()
         elseif j == rs then
           tile = t_wall_b
         elseif i > 2 and i < rs-2 and j > 2 and j < rs-2 then
-          local random = rand(0,6)
+          local random = rand(0,5)
           if random > 0 and random < 3 then
 
             if (random == 2 and not once) then

@@ -6,8 +6,19 @@ size=36
 -- dev=true
 
 t_player = 16
-t_bat = 32
-t_snake = 48
+t_griffon = 32
+t_spider = 33
+t_bat = 34
+t_viper = 48
+t_snake = 49
+t_slime= 50
+
+t_enemies = {
+  {t_bat,t_snake,t_slime},
+  {t_bat,t_snake,t_spider},
+  {t_viper,t_snake,t_spider},
+  {t_viper,t_spider,t_griffon}
+}
 
 t_key = {"k1"}
 t_gold = {"g1"}
@@ -201,6 +212,9 @@ function startgame()
 
   player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, {ai = noop})
   zel_spawn(zgetar())
+  local ppos = rnd_pos(zgetar())
+  player.x,player.y = ppos[1],ppos[2]
+
 
   _upd=update_game
   _drw=draw_game

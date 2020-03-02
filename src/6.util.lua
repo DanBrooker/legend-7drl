@@ -25,7 +25,7 @@ function randf(min, max)
 end
 
 function randa(array)
- return array[rand(1, #array)]
+ return array[rand(1, #array+1)]
 end
 
 function shuffle(a)
