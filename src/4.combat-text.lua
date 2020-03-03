@@ -1,4 +1,5 @@
-function addfloat(_txt,_x,_y,_c)
+function addfloat(_txt,ent,_c)
+  local _x,_y = ent.x*8,ent.y*8
   add(float,{txt=_txt,x=_x,y=_y,c=_c,ty=_y-10,t=0})
 end
 

@@ -31,7 +31,8 @@ end
 function draw_inventory()
   local j = 0
   for item in all(inventory) do
-    drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
+    -- drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
+    _item_draw(item.spr,40 + j, 106,item.col)
     j += 8
   end
 end
@@ -71,30 +72,38 @@ function update_mob(mob)
 
 end
 
+
+
 function pickup_item(item)
+  local isgold = item.name == 'gold'
+  local match = find(inventory, "name", item.name)
+  if match and not item.stack then
+    return
+  elseif #inventory == 5 and not isgold then
+    addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
+    inventory = shuffle(inventory)
+    local drop = pop(inventory)
+    -- drop_item({item.x,item.y}, drop)
+    item_create({item.x,item.y}, drop.name)
+    -- return
+  end
+
   del(items, item)
 
-  if item.type == 'g' then
-    gold += item.amount
-    addfloat("+" .. item.amount .. ' gold', player.x * 8, player.y * 8, 9)
+  if isgold then
+    gold += 1
+    addfloat("+" .. 1 .. ' gold', player, 9)
     return
   elseif item.atk then
-    local atk = player.atk
-    local dif = item.atk - atk
-    local pos = dif > 0 and ' +' or ' '
-
-    addfloat(item.name .. pos .. dif .. 'atk', player.x * 8, player.y * 8, 7)
-
-    player.atk = item.atk or atk
+    player.atk = item.atk or player.atk
+  elseif item.ratk then
+    player.ratk = item.ratk or player.ratk
   elseif item.hp then
-    local hp = player.hp
-    local dif = item.hp - hp
-    local pos = dif > 0 and ' +' or ' '
-
-    addfloat(item.name .. pos .. dif .. 'hp', player.x * 8, player.y * 8, 7)
-
-    player.hp = item.hp or hp
+    player.hp = item.hp or player.hp
+  elseif item.def then
+    player.def = item.def or player.def
   end
+  addfloat(item.name, player, 7)
 
   add(inventory, item)
 end
@@ -141,7 +150,7 @@ end
 function on_death(ent)
   if ent != player then
     del(entities, ent)
-    if rand(0,10) == 1 then
+    if rand(0,10) == 1 or dev then
       drop_item(ent.x, ent.y)
     end
   end
@@ -149,14 +158,15 @@ end
 
 function drop_item(x,y)
   local random = rand(1,4)
-  local item = "i5"
+  local item = "health potion"
   if random == 1 then
     item = randa(t_items)
   elseif random == 2 then
     item = randa(t_weapons)
   elseif random == 3 then
-    item = "g5"
+    item = "gold"
   end
+  -- log("drop!!!")
   item_create({x,y}, item)
 end
 
@@ -219,9 +229,9 @@ function atk(entity, amount, cause)
   amount -= entity.def
  if amount <= 0 then
    return
-  -- addfloat('+'.. abs(amount), entity.x * 8, entity.y * 8, 11)
+  -- addfloat('+'.. abs(amount), entity, 11)
  else
-  addfloat('-'.. amount, entity.x * 8, entity.y * 8, 8)
+  addfloat('-'.. amount, entity, 8)
  end
  entity.hp -= amount
  entity.flash = 10
@@ -245,18 +255,13 @@ function entity_draw(self)
 end
 
 function item_draw(self)
- local col = self.col
- -- if self.flash>0 then
- --  self.flash-=1
- --  col=7
- -- end
- local frame = self.spr -- self.stun != 0 and self.ani[1] or getframe(self.ani)
- local x, y = self.x*8, self.y*8
- drawspr(frame, x, y, col, false, false, true)
+ _item_draw(self.spr, self.x*8, self.y*8, self.col)
+end
 
- --if (self.stun !=0) draws(10, x, y, 0, false)
- --if (self.roots !=0) draws(11, x, y, 0, false)
- --if (self.linked) draws(12, x, y, 0, false)
+function _item_draw(s,x,y,col)
+  pal(15,col or 10)
+  spr(s,x,y)
+  pal()
 end
 
 function getframe(ani)
@@ -290,12 +295,8 @@ function input(butt)
 end
 
 function find(array, key, value)
-  -- log("find ["..key.."]="..value)
-  -- log(array)
-
   for m in all(array) do
    if m[key] == value then
-    -- log("found " .. value)
     return m
    end
   end
@@ -310,9 +311,9 @@ function moveplayer(dir)
   -- sfx(63)
     mobwalk(player,dx,dy)
   --animate()
-  elseif locked(destx,desty) and find(inventory, "type", "k") then
+elseif locked(destx,desty) and find(inventory, "name", "key") then
     -- log("unlocked")
-    key = find(inventory, "type", "k")
+    key = find(inventory, "name", "key")
     del(inventory, key)
     mset(destx, desty, mget(destx,desty)-1)
     -- mobwalk(player,dx,dy)
@@ -323,7 +324,7 @@ function moveplayer(dir)
   else
   -- sfx(63)
     mobbump(player,dx,dy)
-    -- return false
+    return false
   end
   return true
 end
@@ -335,7 +336,7 @@ function locked(x, y)
 end
 
 function walkable(x, y, mode)
- if(dev) return true
+ -- if(dev) return true
 
  local mode = mode or ""
  local floor = not fget(mget(x,y), 0)

@@ -23,11 +23,11 @@ t_enemies = {
   {t_viper,t_spider,t_griffon}
 }
 
-t_key = {"k1"}
-t_gold = {"g1"}
-t_weapons = {"w1","w2","w3","w4","w5"}
-t_items = {"i1", "i2", "i3","i4",'i5',"g1"}
-t_heals = {"i5"}
+t_key = {"key"}
+t_gold = {"gold"}
+t_weapons = {"dagger","poison dagger", "bow", "wand", "sword", "bomb"}
+t_items = {"gold","ring","amulet","leather armour","chainmail", "bomb"}
+t_heals = {"health potion"}
 
 t_stairs = 58
 t_wall_t = 12
@@ -40,83 +40,114 @@ t_door_l = 39
 t_door_r = 55
 t_floor = {9,10,25,26,41} --,57, 42}
 
-armoury = {
-  k1 = {
-    name = 'key',
-    spr = 3,
-    type = 'k'
-  },
-  g1 = {
-    name = 'gold',
-    spr = 35,
-    amount = 1,
-    type = 'g'
-  },
-  w1 = {
-    name = "dagger",
-    type = "w",
-    atk = 2,
-    spr = 19
-  },
-  w2 = {
-    name = "sword",
-    type = "w",
-    atk = 3,
-    spr = 20
-  },
-  w3 = {
-    name = "great sword",
-    type = "w",
-    atk = 4,
-    spr = 20
-  },
-  w4 = {
-    name = "wand",
-    type = "w",
-    ratk = 1,
-    spr = 5
-  },
-  w5 = {
-    name = "bow",
-    type = "w",
-    ratk = 2,
-    spr = 21
-  },
-  i1 = {
-    name = "ring",
-    type = "e",
-    spr = 4
-  },
-  i2 = {
-    name = "amulet",
-    type = "e",
-    spr = 36
-  },
-  i3 = {
-    name = "armour",
-    type = "e",
-    armour = 1,
-    spr = 52
-  },
-  i4 = {
-    name = "bomb",
-    type = "i",
-    spr = 18
-  },
-  i5 = {
-    name = "health potion",
-    type = "p",
-    dhp = 2,
-    spr=2
-  }
+allitems={
+  {'key',3},
+  {'gold',35},
+  {'health potion',2,true,{quaff={hp=2},col=8}}, -- todo
+  {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
+  {'dagger',19,true,{atk=2,col=6}},
+  {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
+  {'sword',10,false,{atk=3,col=6}},
+  {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
+  {'wand',5,false,{ratk=1,col=4}}, -- todo
+  {'bow',21,false,{ratk=2,col=4}}, -- todo
+  {'frost bow',21,false,{ratk=2, freeze=2, col=12}}, -- todo
+  {'bomb',18,true,{explosion=1,col=5}}, -- todo
+  {'mega bomb',18,true,{explosion=2,col=8}}, -- todo
+  {'amulet', 36, true, {hp=4}},
+  {'ring', 4, true, {hp=5}},
+  {'leather armour', 52, false, {def=1}},
+  {'chainmail', 52, false, {def=2}},
+  {'plate armour', 52, false, {def=3}}
 }
 
-id=0
+armoury = {}
+for item in all(allitems) do
+   new_item = {
+    name=item[1],
+    spr=item[2],
+    stack=item[3] or false,
+  }
+  for k,v in pairs(item[4] or {}) do
+    new_item[k] = v
+  end
+  armoury[item[1]] = new_item
+end
+
+-- armoury = {
+--   k1 = {
+--     name = 'key',
+--     spr = 3,
+--     type = 'k'
+--   },
+--   g1 = {
+--     name = 'gold',
+--     spr = 35,
+--     amount = 1,
+--     type = 'g'
+--   },
+--   w1 = {
+--     name = "dagger",
+--     type = "w",
+--     atk = 2,
+--     spr = 19
+--   },
+--   w2 = {
+--     name = "sword",
+--     type = "w",
+--     atk = 3,
+--     spr = 20
+--   },
+--   w3 = {
+--     name = "great sword",
+--     type = "w",
+--     atk = 4,
+--     spr = 20
+--   },
+--   w4 = {
+--     name = "wand",
+--     type = "r",
+--     ratk = 1,
+--     spr = 5
+--   },
+--   w5 = {
+--     name = "bow",
+--     type = "r",
+--     ratk = 2,
+--     spr = 21
+--   },
+--   i1 = {
+--     name = "ring",
+--     type = "i",
+--     spr = 4
+--   },
+--   i2 = {
+--     name = "amulet",
+--     type = "i",
+--     spr = 36
+--   },
+--   i3 = {
+--     name = "armour",
+--     type = "a",
+--     armour = 1,
+--     spr = 52
+--   },
+--   i4 = {
+--     name = "bomb",
+--     type = "i",
+--     spr = 18
+--   },
+--   i5 = {
+--     name = "health potion",
+--     type = "i",
+--     dhp = 2,
+--     spr=2
+--   }
+-- }
+
 function entity_create(x, y, spr, args)
   -- log(args)
-  id += 1
   local new_entity = {
-   id = id,
    x = x,
    y = y,
    mov = nil,
@@ -147,12 +178,15 @@ function entity_create(x, y, spr, args)
   add(entities, new_entity)
   return new_entity
 end
-function item_create(pos, key)
-  -- log(key)
-  local data = armoury[key]
+function item_create(pos, name)
+  log("create " .. name)
+  local data = armoury[name]
+  if not data then
+    log("no data for " .. name)
+    return
+  end
   -- log(data)
   local new_item = {
-   id = id,
    x = pos[1],
    y = pos[2]
   }
@@ -192,7 +226,7 @@ function _draw()
 end
 
 function startgame()
-  log("startgame")
+  -- log("startgame")
   --fading
   --fadeperc=1
 
@@ -313,7 +347,8 @@ end
 function draw_inventory()
   local j = 0
   for item in all(inventory) do
-    drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
+    -- drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
+    _item_draw(item.spr,40 + j, 106,item.col)
     j += 8
   end
 end
@@ -353,30 +388,38 @@ function update_mob(mob)
 
 end
 
+
+
 function pickup_item(item)
+  local isgold = item.name == 'gold'
+  local match = find(inventory, "name", item.name)
+  if match and not item.stack then
+    return
+  elseif #inventory == 5 and not isgold then
+    addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
+    inventory = shuffle(inventory)
+    local drop = pop(inventory)
+    -- drop_item({item.x,item.y}, drop)
+    item_create({item.x,item.y}, drop.name)
+    -- return
+  end
+
   del(items, item)
 
-  if item.type == 'g' then
-    gold += item.amount
-    addfloat("+" .. item.amount .. ' gold', player.x * 8, player.y * 8, 9)
+  if isgold then
+    gold += 1
+    addfloat("+" .. 1 .. ' gold', player, 9)
     return
   elseif item.atk then
-    local atk = player.atk
-    local dif = item.atk - atk
-    local pos = dif > 0 and ' +' or ' '
-
-    addfloat(item.name .. pos .. dif .. 'atk', player.x * 8, player.y * 8, 7)
-
-    player.atk = item.atk or atk
+    player.atk = item.atk or player.atk
+  elseif item.ratk then
+    player.ratk = item.ratk or player.ratk
   elseif item.hp then
-    local hp = player.hp
-    local dif = item.hp - hp
-    local pos = dif > 0 and ' +' or ' '
-
-    addfloat(item.name .. pos .. dif .. 'hp', player.x * 8, player.y * 8, 7)
-
-    player.hp = item.hp or hp
+    player.hp = item.hp or player.hp
+  elseif item.def then
+    player.def = item.def or player.def
   end
+  addfloat(item.name, player, 7)
 
   add(inventory, item)
 end
@@ -423,7 +466,7 @@ end
 function on_death(ent)
   if ent != player then
     del(entities, ent)
-    if rand(0,10) == 1 then
+    if rand(0,10) == 1 or dev then
       drop_item(ent.x, ent.y)
     end
   end
@@ -431,14 +474,15 @@ end
 
 function drop_item(x,y)
   local random = rand(1,4)
-  local item = "i5"
+  local item = "health potion"
   if random == 1 then
     item = randa(t_items)
   elseif random == 2 then
     item = randa(t_weapons)
   elseif random == 3 then
-    item = "g5"
+    item = "gold"
   end
+  -- log("drop!!!")
   item_create({x,y}, item)
 end
 
@@ -501,9 +545,9 @@ function atk(entity, amount, cause)
   amount -= entity.def
  if amount <= 0 then
    return
-  -- addfloat('+'.. abs(amount), entity.x * 8, entity.y * 8, 11)
+  -- addfloat('+'.. abs(amount), entity, 11)
  else
-  addfloat('-'.. amount, entity.x * 8, entity.y * 8, 8)
+  addfloat('-'.. amount, entity, 8)
  end
  entity.hp -= amount
  entity.flash = 10
@@ -527,18 +571,13 @@ function entity_draw(self)
 end
 
 function item_draw(self)
- local col = self.col
- -- if self.flash>0 then
- --  self.flash-=1
- --  col=7
- -- end
- local frame = self.spr -- self.stun != 0 and self.ani[1] or getframe(self.ani)
- local x, y = self.x*8, self.y*8
- drawspr(frame, x, y, col, false, false, true)
+ _item_draw(self.spr, self.x*8, self.y*8, self.col)
+end
 
- --if (self.stun !=0) draws(10, x, y, 0, false)
- --if (self.roots !=0) draws(11, x, y, 0, false)
- --if (self.linked) draws(12, x, y, 0, false)
+function _item_draw(s,x,y,col)
+  pal(15,col or 10)
+  spr(s,x,y)
+  pal()
 end
 
 function getframe(ani)
@@ -572,12 +611,8 @@ function input(butt)
 end
 
 function find(array, key, value)
-  -- log("find ["..key.."]="..value)
-  -- log(array)
-
   for m in all(array) do
    if m[key] == value then
-    -- log("found " .. value)
     return m
    end
   end
@@ -592,9 +627,9 @@ function moveplayer(dir)
   -- sfx(63)
     mobwalk(player,dx,dy)
   --animate()
-  elseif locked(destx,desty) and find(inventory, "type", "k") then
+elseif locked(destx,desty) and find(inventory, "name", "key") then
     -- log("unlocked")
-    key = find(inventory, "type", "k")
+    key = find(inventory, "name", "key")
     del(inventory, key)
     mset(destx, desty, mget(destx,desty)-1)
     -- mobwalk(player,dx,dy)
@@ -605,7 +640,7 @@ function moveplayer(dir)
   else
   -- sfx(63)
     mobbump(player,dx,dy)
-    -- return false
+    return false
   end
   return true
 end
@@ -617,7 +652,7 @@ function locked(x, y)
 end
 
 function walkable(x, y, mode)
- if(dev) return true
+ -- if(dev) return true
 
  local mode = mode or ""
  local floor = not fget(mget(x,y), 0)
@@ -1310,7 +1345,8 @@ end
 --end
 -->8
 --combat text
-function addfloat(_txt,_x,_y,_c)
+function addfloat(_txt,ent,_c)
+  local _x,_y = ent.x*8,ent.y*8
   add(float,{txt=_txt,x=_x,y=_y,c=_c,ty=_y-10,t=0})
 end
 
@@ -1484,36 +1520,36 @@ end
 __gfx__
 000000008090a0b000000000000000000000000000000000dddddd5ddddddd5ddddddd5d11111111111111115ddddd5ddddddd5d5ddddd550000000000000000
 00000000090a0b030000000000aaa0000000000000000000dddddd5dddd00d5dddd44d5d1555555115515551d5ddddd5dddddd5dd5dddd550000000000000000
-0000000090a0b0300004400000a0a0000000000000000400dddddd5ddd00005ddd44445d1555555115111551dd5ddddddddddd5ddd5dd5dd0000000000000000
-000000000a0b03010007700000aa000000000000000040005555555550000005544444451555555111111151ddd5d55555555555ddd555550000000000000000
-00000000a0b0301000088000000aa0000008000000040000ddd5ddddd000000dd446666d1555555111111111dddd5dddddd5ddddddd55ddd0000000000000000
-000000000b03010200888800000a00000060600000400000ddd5d5ddd000000dd444444d1155555115511111ddd5d5ddddd5dddddd55d5dd0000000000000000
-00000000b030102000888800000aa0000006000000000000dddd5dddd000000dd446666d11155551155511115dd5dd5dddd5dddd55d5dd5d0000000000000000
-0000000003010205000880000000000000000000000000005555555550000005544444451111111111111111d5d5ddd55555555555d5ddd50000000000000000
-00000000000000000000000000000000000000000000000055555555d000000dd666644d1111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
-0000cc000000440000000000000000000000000000040000ddd5d55dd000000dd444444d1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
-0000ff000000ff0000000700000000000006000000704000dddd5d5dd000000dd666644d11111111155551115555ddd50000000055555ddd0000000000000000
-000888000003330000007000000000000006000000700400ddd5d55d50000005544444451111111115555111ddd5ddd5000000005ddd5ddd0000000000000000
-00808800003033000005500000060000000600000070040055555555dd0000dddd4444dd1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
-00f022f000f044f000555500000600000006000000700400ddd5dddddd0000dddd4444dd1111111111111551ddd55555000000005ddd55550000000000000000
-000202000004040000555500006660000066600000704000ddd5ddddddd00dddddd44ddd1111111111111551ddd5ddd5000000005ddd5ddd0000000000000000
-002002000040040000055000000600000006000000040000ddd5dddd55555555555555551111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
+0000000090a0b0300004400000a0a0000000000000000f00dddddd5ddd00005ddd44445d1555555115111551dd5ddddddddddd5ddd5dd5dd0000000000000000
+000000000a0b03010007700000aa0000000000000000f0005555555550000005544444451555555111111151ddd5d55555555555ddd555550000000000000000
+00000000a0b03010000ff000000aa000000f0000000f0000ddd5ddddd000000dd446666d1555555111111111dddd5dddddd5ddddddd55ddd0000000000000000
+000000000b03010200ffff00000a00000060600000f00000ddd5d5ddd000000dd444444d1155555115511111ddd5d5ddddd5dddddd55d5dd0000000000000000
+00000000b030102000ffff00000aa0000006000000000000dddd5dddd000000dd446666d11155551155511115dd5dd5dddd5dddd55d5dd5d0000000000000000
+0000000003010205000ff0000000000000000000000000005555555550000005544444451111111111111111d5d5ddd55555555555d5ddd50000000000000000
+0000000000000000000000000000000000000000000000005555555550000005d666644d1111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
+0000cc0000004400000000000000000000000000000f0000ddd5d55dd000000dd444444d1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
+0000ff000000ff000000070000000000000f00000070f000dddd5d5dd000000dd666644d11111111155551115555ddd50000000055555ddd0000000000000000
+00088800000333000000700000000000000f000000700f00ddd5d55dd000000d544444451111111115555111ddd5ddd5000000005ddd5ddd0000000000000000
+0080880000303300000ff000000f0000000f000000700f005555555555000055dd4444dd1111111111551111ddd5ddd5000000005ddd5ddd0000000000000000
+00f022f000f044f000ffff00000f0000000f000000700f00ddd5dddddd0000dddd4444dd1111111111111551ddd55555000000005ddd55550000000000000000
+000202000004040000ffff0000666000006660000070f000ddd5dddddd500dddddd44ddd1111111111111551ddd5ddd5000000005ddd5ddd0000000000000000
+0020020000400400000ff0000006000000060000000f0000ddd5dddddd5ddddd555555551111111111111111ddd5ddd5000000005ddd5ddd0000000000000000
 000000000000000000000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111110000d0005ddddd55555555555ddd5d5d0000000000000000
 006605000000000000000000000000000007000000000000ddd5ddd5ddd50000ddd544441313111100dddd00d5dddd55dddddd5dd5dd5dd50000000000000000
-0660005000000000100000100000000000707000000008005555ddd55550000055544444131311110dddddd0dd5dd5dddddddd5ddd5d5ddd0000000000000000
-606060600005522011000110000aa0000700070000004000ddd5ddd5dd000000dd444444111111110dddddd5ddd55555dddddd5dddd5dddd0000000000000000
-00608680050525500181810000aaaa000070700000040000ddd55d55dd000000dd444646111111110dd5d5ddddd55ddd55555555555d5ddd0000000000000000
-00d6d6605055565600111000000aa0000007bb0007400000ddd5d5d5ddd00000ddd446461111313105dd5d50dd55d5ddddd5ddddddddd5dd0000000000000000
-0dddd0005075060600010000000000000000bb0000700000ddd55d55ddd50000ddd546461111313100d5d5005585dd5dddd5dddd5ddddd5d0000000000000000
+0660005000000000100000100000000000707000000000005555ddd55550000055544444131311110dddddd0dd5dd5dddddddd5ddd5d5ddd0000000000000000
+606060600005522011000110000aa0000700070000000000ddd5ddd5dd000000dd444444111111110dddddd5ddd55555dddddd5dddd5dddd0000000000000000
+00608680050525500181810000aaaa000070700000000000ddd55d55dd000000dd444646111111110dd5d5ddddd55ddd55555555555d5ddd0000000000000000
+00d6d6605055565600111000000aa0000007ff0000000000ddd5d5d5ddd00000ddd446461111313105dd5d50dd55d5ddddd5ddddddddd5dd0000000000000000
+0dddd0005075060600010000000000000000ff0000000000ddd55d55ddd50000ddd546461111313100d5d5005585dd5dddd5dddd5ddddd5d0000000000000000
 066d55505000060600000000000000000000000000000000ddd5ddd5ddd5ddd5ddd5ddd5111111110000000055d5ddd5ddd5ddddd5ddddd50000000000000000
-0000000000000000000000000000000000000000000000005ddd5ddd5ddd5ddd5ddd5ddd1111d111551111111102201100000000000000000000000000000000
-00bbb00000000000000000000000000000000000000000005ddd5ddd00005ddd64645ddd11dddd11551611111102201100000000000000000000000000000000
-00bb83000222720c00000000000000000000000000000c0055555ddd000000dd646444dd1dddddd1551616111102201100000000000000000000000000000000
-00033300020222c000bbb0000000000000000000000040005ddd5ddd000000dd646444dd1ddddddd551616171022220100000000000000000000000000000000
-003330000200000c0bbb3b000000000000000000000400005dd5d5dd000000dd444444dd15dddddd551616170222222000000000000000000000000000000000
-0bb300b002eeee00bbbb3b000006660000666600074000005ddd5d55000000554444445511dd5dd1551616110222222000000000000000000000000000000000
-00bb000300002e00bbbbb3b00006060006066060007000005dd5d5dd00005ddd44445ddd11111111551611111022220100000000000000000000000000000000
-000bbb330e22e200bbbbbbb00006060000066000000000005ddd5ddd5ddd5ddd5ddd5ddd11111111551111111100001100000000000000000000000000000000
+0000000000000000000000000000000000000000000000005ddd5ddd5ddd5ddd5ddd5ddd1111d111551111110000000000000000000000000000000000000000
+00bbb00000000000000000000000000000000000000000005ddd5ddd00005ddd64645ddd11dddd11551611110000000000000000000000000000000000000000
+00bb83000222720c0000000000000000000000000000000055555ddd000000dd646444dd1dddddd1551616110000000000000000000000000000000000000000
+00033300020222c000bbb0000000000000000000000000005ddd5ddd000000dd646444dd1ddddddd551616170444444009999990000000000000000000000000
+003330000200000c0bbb3b000000000000000000000000005dd5d5dd000000dd444444dd15dddddd5516161704566540095aa590000000000000000000000000
+0bb300b002eeee00bbbb3b000000000000ffff00000000005ddd5d55000000554444445511dd5dd1551616110444444009999990000000000000000000000000
+00bb000300002e00bbbbb3b0000000000f0ff0f0000000005dd5d5dd00005ddd44445ddd11111111551611110455554009555590000000000000000000000000
+000bbb330e22e200bbbbbbb000000000000ff000000000005ddd5ddd5ddd5ddd5ddd5ddd11111111551111110444444009999990000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
