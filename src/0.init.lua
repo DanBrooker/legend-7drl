@@ -235,6 +235,9 @@ function startgame()
   depth=1
   gold=0
 
+  aiming = false
+  inventory_window = false
+
   entities={}
   mobs={}
   items={}

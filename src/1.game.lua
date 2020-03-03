@@ -1,8 +1,8 @@
 function update_game()
    update_player(player)
-   for mob in all(mobs) do
-     update_mob(mob)
-   end
+   -- for mob in all(mobs) do
+   --   update_mob(mob)
+   -- end
 end
 
 function draw_game()
@@ -22,10 +22,26 @@ function draw_game()
   if (dev) minimap_draw()
 
   camera()
+
   draw_inventory()
   draw_health()
   draw_stats()
   zel_draw()
+  draw_instructions()
+
+end
+
+function draw_instructions()
+  cursor(3,116)
+  color(13)
+  if aiming then
+    color(8)
+    print("arrows to fire")
+  elseif player.ratk > 0 then
+    print("z to aim, x for inventory")
+  else
+    print("x for inventory")
+  end
 end
 
 function draw_inventory()
@@ -68,11 +84,9 @@ function update_player(player)
   end
 end
 
-function update_mob(mob)
-
-end
-
-
+-- function update_mob(mob)
+--
+-- end
 
 function pickup_item(item)
   local isgold = item.name == 'gold'
@@ -278,13 +292,14 @@ end
 function input(butt)
  if butt<0 then return false end
  if butt<4 then
-  --if aiming then
-   --return fireprojectile(player, dirs[butt+1])
-  --else
+  if aiming then
+   return fireprojectile(player, dirs[butt+1])
+  else
    return moveplayer(dirs[butt+1])
-  --end
- elseif butt==4 then
-  --return toogleshoot()
+  end
+elseif butt==4 and player.ratk > 0 then
+  aiming = not aiming
+  return false
  elseif butt==5 then
   --if aiming then
    --return false -- maybe discharge if #enemies == 0
