@@ -43,17 +43,17 @@ t_floor = {9,10,25,26,41} --,57, 42}
 allitems={
   {'key',3},
   {'gold',35},
-  {'health potion',2,true,{quaff={hp=2},col=8}}, -- todo
+  {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=8}}, -- todo
   {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
   {'dagger',19,true,{atk=2,col=6}},
   {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
-  {'sword',10,false,{atk=3,col=6}},
+  {'sword',20,false,{atk=3,col=6}},
   {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
   {'wand',5,false,{ratk=1,col=4}}, -- todo
   {'bow',21,false,{ratk=2,col=4}}, -- todo
   {'frost bow',21,false,{ratk=2, freeze=2, col=12}}, -- todo
-  {'bomb',18,true,{explosion=1,col=5}}, -- todo
-  {'mega bomb',18,true,{explosion=2,col=8}}, -- todo
+  {'bomb',18,true,{throw=expode, explosion=1,col=5}}, -- todo
+  {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
   {'amulet', 36, true, {hp=4}},
   {'ring', 4, true, {hp=5}},
   {'leather armour', 52, false, {def=1}},
@@ -145,7 +145,15 @@ end
 --   }
 -- }
 
+function enemy_create(x, y, spr, args)
+  if (x==-1 and y==-1) return
+  local new_enemy = entity_create(x, y, spr, args)
+  add(enemies, new_enemy)
+  return new_enemy
+end
+
 function entity_create(x, y, spr, args)
+  if (x==-1 and y==-1) return
   -- log(args)
   local new_entity = {
    x = x,
@@ -179,6 +187,7 @@ function entity_create(x, y, spr, args)
   return new_entity
 end
 function item_create(pos, name)
+  if (x==-1 and y==-1) return
   log("create " .. name)
   local data = armoury[name]
   if not data then
@@ -239,14 +248,16 @@ function startgame()
   gold=0
 
   aiming = false
+  aimingi = 0
   inventory_window = false
 
   entities={}
-  mobs={}
+  enemies={}
   items={}
   float={}
   enviro={}
   inventory={}
+  particles={}
 
   zel_init()
 
@@ -322,6 +333,7 @@ function update_game()
    -- for mob in all(mobs) do
    --   update_mob(mob)
    -- end
+   foreach(particles, update_part)
 end
 
 function draw_game()
@@ -336,7 +348,7 @@ function draw_game()
   foreach(items,item_draw)
   foreach(entities,entity_draw)
   clip()
-  -- foreach(particles,draw_part)
+  foreach(particles, draw_part)
   foreach(float, draw_float)
   if (dev) minimap_draw()
 
@@ -347,7 +359,6 @@ function draw_game()
   draw_stats()
   zel_draw()
   draw_instructions()
-
 end
 
 function draw_instructions()
@@ -355,10 +366,10 @@ function draw_instructions()
   color(13)
   if aiming then
     color(8)
-    print("arrows to fire")
+    print("arrows to fire, x to change")
   elseif player.ratk > 0 then
     print("z to aim, x for inventory")
-  else
+  elseif #inventory > 0 then
     print("x for inventory")
   end
 end
@@ -366,9 +377,11 @@ end
 function draw_inventory()
   local j = 0
   for item in all(inventory) do
-    -- drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
     _item_draw(item.spr,40 + j, 106,item.col)
     j += 8
+  end
+  if aiming then
+    rect(39 + (8*aimingi), 106, 39 + (8*aimingi) + 9, 106 + 8, 11)
   end
 end
 
@@ -445,6 +458,10 @@ function update_end_turn()
 
  room = zgetar()
  if not room.spawn then
+   -- move player in one
+   player.x += lastmove[1]
+   player.y += lastmove[2]
+
    zel_spawn(room)
  end
 
@@ -482,10 +499,12 @@ end
 
 function on_death(ent)
   if ent != player then
+    del(enemies, ent)
     del(entities, ent)
     if rand(0,10) == 1 or dev then
       drop_item(ent.x, ent.y)
     end
+    if(zel_clear()) zel_unlock()
   end
 end
 
@@ -616,16 +635,84 @@ function input(butt)
   else
    return moveplayer(dirs[butt+1])
   end
-elseif butt==4 and player.ratk > 0 then
+elseif butt==4 and #inventory > 0 then
   aiming = not aiming
+  aimingi = aimingi % #inventory
   return false
  elseif butt==5 then
-  --if aiming then
+  if aiming then
+    aimingi += 1
+    aimingi = aimingi % #inventory
+  end
    --return false -- maybe discharge if #enemies == 0
   --else
    --return switchitem()
   --end
  end
+end
+
+function fireprojectile(entity, dir)
+  mobflip(entity, dir[1])
+  aiming = false
+  -- charges[item] -= 1
+  local hx, hy = throwtile(dir[1], dir[2]) -- max distance???
+
+  local item = inventory[aimingi+1]
+  log("fire item")
+  log(item)
+
+  local hit = entity_at(hx, hy)
+  local amount = 1
+
+  if item.ratk then
+    amount = item.ratk
+  else
+   if not hit then
+     hx -= dir[1]
+     hy -= dir[2]
+     item_create({hx,hy}, item.name)
+   end
+
+   del(inventory, item)
+  end
+
+  if item.throw then
+
+  elseif hit then
+    atk(hit, amount)
+    for i=1,4 do
+      -- different colours??
+      create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
+    end
+  end
+
+  -- create_part(hx,hy,rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2)
+  -- create_part(hx*8+4, hy*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2,5)
+
+
+  -- debug[1]= magics[stored[item]]
+  -- effects[m](hx, hy, hit, entity)
+  return true
+end
+
+function aimtile(entity, dx, dy)
+ local tx,ty,i = entity.x,entity.y,0
+ repeat
+  tx += dx
+  ty += dy
+  i += 1
+ until not walkable(tx,ty, "player") or i >= 8
+ return tx,ty
+end
+
+function throwtile(dx, dy)
+ local tx,ty,i = player.x,player.y,0
+ repeat
+  tx += dx
+  ty += dy
+  i += 1
+ until not walkable(tx,ty, "entities") or i >= 8
+ return tx,ty
 end
 
 function find(array, key, value)
@@ -637,6 +724,7 @@ function find(array, key, value)
 end
 
 function moveplayer(dir)
+  lastmove = dir
   local dx, dy = dir[1], dir[2]
   local destx,desty=player.x+dx,player.y+dy
   --local tle=mget(destx,desty)
@@ -678,6 +766,9 @@ function walkable(x, y, mode)
  if mode == "entities" then
   if (floor) return entity_at(x,y) == nil
  end
+ if mode == "items" then
+  if (floor) return item_at(x,y) == nil
+ end
  if mode == "player" then
   if (floor) return player.x == x and player.y == y
  end
@@ -694,6 +785,10 @@ end
 
 function entity_at(x,y)
   return blank_at(x,y, entities)
+end
+
+function enemy_at(x,y)
+  return blank_at(x,y, enemies)
 end
 
 function item_at(x,y)
@@ -843,26 +938,77 @@ function rnd_pos(room)
     x, y = rand(l,r), rand(t,b)
     i += 1
     -- log(i)
-  until walkable(x,y, "entities") or i > 10
+  until (walkable(x,y, "entities") and walkable(x,y, "items") and (distance(player.x, player.y, x, y) > 2)) or i > 10
   -- log("room")
-  -- log(room)
+  log("player " .. player.x .. ',' .. player.y)
+  log("spawn " .. x .. ',' .. y)
+  log('dist ' .. distance(player.x, player.x, x, y))
   if(i>10) x,y=-1,-1
   -- log(x .. ',' .. y)
   return {x,y}
+end
+
+function iter_room(room, func)
+  for i=room.left,room.right do
+    for j=room.top,room.bottom do
+      func(i,j)
+    end
+  end
+end
+
+function zel_lock(room)
+  iter_room(room, function(i,j)
+    local t = mget(i,j)
+    if (t == t_door_r) t += 1
+    if (t == t_door_l) t += 1
+    if (t == t_door_t) t += 1
+    if (t == t_door_b) t += 1
+
+    mset(i,j,t)
+  end)
+end
+
+function zel_unlock()
+  local room = zgetar()
+  iter_room(room, function(i,j)
+    local t = mget(i,j)
+    if (t == t_door_r+1) t -= 1
+    if (t == t_door_l+1) t -= 1
+    if (t == t_door_t+1) t -= 1
+    if (t == t_door_b+1) t -= 1
+
+    mset(i,j,t)
+  end)
+end
+
+function zel_clear()
+  local room = zgetar()
+  local enemies = false
+
+  iter_room(room, function(i,j)
+    if (enemy_at(i,j)) enemies = true
+  end)
+  -- debug[1] = enemies
+  return not enemies
 end
 
 function zel_spawn(room)
   -- log("zel_spawn")
   room.spawn = true
 
+  local mobcount = #enemies
+
   if room.g == 'e' then
     -- do nothing
-    item_create(rnd_pos(room), randa(t_weapons))
+    item_create(rnd_pos(room), 'dagger')
+    item_create(rnd_pos(room), 'wand')
+    item_create(rnd_pos(room), 'leather armour')
+    item_create(rnd_pos(room), 'health potion')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
     local boss = rnd_pos(room)
-    entity_create(boss[1],boss[2], 48)
+    enemy_create(boss[1],boss[2], 48)
     local down = rnd_pos(room)
     mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
@@ -882,13 +1028,15 @@ function zel_spawn(room)
   else
     for i = 1,(room.g+0) do
       local pos = rnd_pos(room)
-      entity_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=1})
+      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth})
     end
   end
 
+  if (#enemies > mobcount) zel_lock(room)
+
   -- random add heal or food
-  item_create(rnd_pos(room), randa(t_heals))
-  item_create(rnd_pos(room), randa(t_gold))
+  if (rand(0,3) == 0) item_create(rnd_pos(room), randa(t_heals))
+  if (rand(0,2) == 0) item_create(rnd_pos(room), randa(t_gold))
 end
 
 grid = {}
@@ -1362,26 +1510,6 @@ end
 	--end
 --end
 -->8
---combat text
-function addfloat(_txt,ent,_c)
-  local _x,_y = ent.x*8,ent.y*8
-  add(float,{txt=_txt,x=_x,y=_y,c=_c,ty=_y-10,t=0})
-end
-
-function dofloats()
-  for f in all(float) do
-    f.y+=(f.ty-f.y)/10
-    f.t+=1
-    if f.t>70 then
-      del(float,f)
-    end
-  end
-end
-
-function draw_float(f)
-  oprint8(f.txt,f.x,f.y,f.c,0)
-end
--->8
 --graphics
 function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
   pal(0,15)
@@ -1411,6 +1539,63 @@ function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
   spr(_spr,_x,_y,1,1,_flip)
   pal()
   palt()
+end
+
+function addfloat(_txt,ent,_c)
+  local _x,_y = ent.x*8,ent.y*8
+  add(float,{txt=_txt,x=_x,y=_y,c=_c,ty=_y-10,t=0})
+end
+
+function dofloats()
+  for f in all(float) do
+    f.y+=(f.ty-f.y)/10
+    f.t+=1
+    if f.t>70 then
+      del(float,f)
+    end
+  end
+end
+
+function draw_float(f)
+  oprint8(f.txt,f.x,f.y,f.c,0)
+end
+
+function create_part(x,y,dx,dy,sprite,life,sz,col)
+ local p = {
+  x=x,
+  y=y,
+  dx=dx,
+  dy=dy,
+  sprite=sprite,
+  life=life,
+  sz=sz,
+  col=col
+ }
+ -- log("added particle")
+ add(particles,p)
+ return p
+end
+
+function update_part(p)
+ if(p.life<=0)del(particles,p)
+
+ if p.sz !=nil then
+  p.sz-=0.2
+ end
+
+ p.x+=p.dx
+ p.y+=p.dy
+
+ p.life-=1
+end
+
+function draw_part(p)
+  if p.sprite != 0 then
+    _item_draw(p.sprite, p.x, p.y, p.col)
+  -- spr(p.sprite,p.x,p.y)
+  else
+    circfill(p.x,p.y,p.sz,p.col)
+  end
 end
 
 function oprint8(_t,_x,_y,_c)
@@ -1609,6 +1794,34 @@ __gfx__
 60080006060006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 66000066000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
-0000000000000000050000010101000000000000000001000500000100010000000000000000000005000101010100000000000000000000050100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000050000010101000000000000000000000500000100010000000000000000000005000101010100000000000000000000050100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__sfx__
+0001000019550195501955019550175501655015550145501455013550135501355013550125501255011550105500f5500f5500f5500e550125500e5500e550125500e5500e5500f5500f5500f5500f5500f550
+000100000c5530c0510d0510f0410f040100401103012030130201402015030160501706018070190701a0701b0701c0701d0701e070200602105022040240302502027020290112c0512e051310523505239053
+0001000023150211501f150236501c1501b1501915019150191501f7501915019150191501915018150181501715017150161501c750141501b7501315012150101500f1500d1500d1500c1500b1500b1500a150
+0001000026450244502345021450204401d4301a4501843016430144200f4200c420084200541003410014100e400194000a400074000640005400154000d500124000f4000d4000d5000940007400074000e500
+00080000035000350004500055000550006500065000850009500095000a5000c5000d5000e5001050011500135001450017500195001a5001c5001e5001f500215002350025500265002a5002d5002f50033500
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00100000000000000000000100501f0501f0701d050240500000019050290502a05015050110502c0500e0502e0500a050080502e0502e0500000000000000000000000000000000000000000000000000000000
+__music__
+00 01424344
+00 57424344
 

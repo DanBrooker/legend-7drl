@@ -85,26 +85,77 @@ function rnd_pos(room)
     x, y = rand(l,r), rand(t,b)
     i += 1
     -- log(i)
-  until walkable(x,y, "entities") or i > 10
+  until (walkable(x,y, "entities") and walkable(x,y, "items") and (distance(player.x, player.y, x, y) > 2)) or i > 10
   -- log("room")
-  -- log(room)
+  log("player " .. player.x .. ',' .. player.y)
+  log("spawn " .. x .. ',' .. y)
+  log('dist ' .. distance(player.x, player.x, x, y))
   if(i>10) x,y=-1,-1
   -- log(x .. ',' .. y)
   return {x,y}
+end
+
+function iter_room(room, func)
+  for i=room.left,room.right do
+    for j=room.top,room.bottom do
+      func(i,j)
+    end
+  end
+end
+
+function zel_lock(room)
+  iter_room(room, function(i,j)
+    local t = mget(i,j)
+    if (t == t_door_r) t += 1
+    if (t == t_door_l) t += 1
+    if (t == t_door_t) t += 1
+    if (t == t_door_b) t += 1
+
+    mset(i,j,t)
+  end)
+end
+
+function zel_unlock()
+  local room = zgetar()
+  iter_room(room, function(i,j)
+    local t = mget(i,j)
+    if (t == t_door_r+1) t -= 1
+    if (t == t_door_l+1) t -= 1
+    if (t == t_door_t+1) t -= 1
+    if (t == t_door_b+1) t -= 1
+
+    mset(i,j,t)
+  end)
+end
+
+function zel_clear()
+  local room = zgetar()
+  local enemies = false
+
+  iter_room(room, function(i,j)
+    if (enemy_at(i,j)) enemies = true
+  end)
+  -- debug[1] = enemies
+  return not enemies
 end
 
 function zel_spawn(room)
   -- log("zel_spawn")
   room.spawn = true
 
+  local mobcount = #enemies
+
   if room.g == 'e' then
     -- do nothing
-    item_create(rnd_pos(room), randa(t_weapons))
+    item_create(rnd_pos(room), 'dagger')
+    item_create(rnd_pos(room), 'wand')
+    item_create(rnd_pos(room), 'leather armour')
+    item_create(rnd_pos(room), 'health potion')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
     local boss = rnd_pos(room)
-    entity_create(boss[1],boss[2], 48)
+    enemy_create(boss[1],boss[2], 48)
     local down = rnd_pos(room)
     mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
@@ -124,13 +175,15 @@ function zel_spawn(room)
   else
     for i = 1,(room.g+0) do
       local pos = rnd_pos(room)
-      entity_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=1})
+      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth})
     end
   end
 
+  if (#enemies > mobcount) zel_lock(room)
+
   -- random add heal or food
-  item_create(rnd_pos(room), randa(t_heals))
-  item_create(rnd_pos(room), randa(t_gold))
+  if (rand(0,3) == 0) item_create(rnd_pos(room), randa(t_heals))
+  if (rand(0,2) == 0) item_create(rnd_pos(room), randa(t_gold))
 end
 
 grid = {}

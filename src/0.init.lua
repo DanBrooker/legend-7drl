@@ -40,17 +40,17 @@ t_floor = {9,10,25,26,41} --,57, 42}
 allitems={
   {'key',3},
   {'gold',35},
-  {'health potion',2,true,{quaff={hp=2},col=8}}, -- todo
+  {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=8}}, -- todo
   {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
   {'dagger',19,true,{atk=2,col=6}},
   {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
-  {'sword',10,false,{atk=3,col=6}},
+  {'sword',20,false,{atk=3,col=6}},
   {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
   {'wand',5,false,{ratk=1,col=4}}, -- todo
   {'bow',21,false,{ratk=2,col=4}}, -- todo
   {'frost bow',21,false,{ratk=2, freeze=2, col=12}}, -- todo
-  {'bomb',18,true,{explosion=1,col=5}}, -- todo
-  {'mega bomb',18,true,{explosion=2,col=8}}, -- todo
+  {'bomb',18,true,{throw=expode, explosion=1,col=5}}, -- todo
+  {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
   {'amulet', 36, true, {hp=4}},
   {'ring', 4, true, {hp=5}},
   {'leather armour', 52, false, {def=1}},
@@ -142,7 +142,15 @@ end
 --   }
 -- }
 
+function enemy_create(x, y, spr, args)
+  if (x==-1 and y==-1) return
+  local new_enemy = entity_create(x, y, spr, args)
+  add(enemies, new_enemy)
+  return new_enemy
+end
+
 function entity_create(x, y, spr, args)
+  if (x==-1 and y==-1) return
   -- log(args)
   local new_entity = {
    x = x,
@@ -176,6 +184,7 @@ function entity_create(x, y, spr, args)
   return new_entity
 end
 function item_create(pos, name)
+  if (x==-1 and y==-1) return
   log("create " .. name)
   local data = armoury[name]
   if not data then
@@ -236,14 +245,16 @@ function startgame()
   gold=0
 
   aiming = false
+  aimingi = 0
   inventory_window = false
 
   entities={}
-  mobs={}
+  enemies={}
   items={}
   float={}
   enviro={}
   inventory={}
+  particles={}
 
   zel_init()
 

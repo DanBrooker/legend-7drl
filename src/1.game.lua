@@ -3,6 +3,7 @@ function update_game()
    -- for mob in all(mobs) do
    --   update_mob(mob)
    -- end
+   foreach(particles, update_part)
 end
 
 function draw_game()
@@ -17,7 +18,7 @@ function draw_game()
   foreach(items,item_draw)
   foreach(entities,entity_draw)
   clip()
-  -- foreach(particles,draw_part)
+  foreach(particles, draw_part)
   foreach(float, draw_float)
   if (dev) minimap_draw()
 
@@ -28,7 +29,6 @@ function draw_game()
   draw_stats()
   zel_draw()
   draw_instructions()
-
 end
 
 function draw_instructions()
@@ -36,10 +36,10 @@ function draw_instructions()
   color(13)
   if aiming then
     color(8)
-    print("arrows to fire")
+    print("arrows to fire, x to change")
   elseif player.ratk > 0 then
     print("z to aim, x for inventory")
-  else
+  elseif #inventory > 0 then
     print("x for inventory")
   end
 end
@@ -47,9 +47,11 @@ end
 function draw_inventory()
   local j = 0
   for item in all(inventory) do
-    -- drawspr(item.spr, 40 + j, 106, item.col, false, false, true)
     _item_draw(item.spr,40 + j, 106,item.col)
     j += 8
+  end
+  if aiming then
+    rect(39 + (8*aimingi), 106, 39 + (8*aimingi) + 9, 106 + 8, 11)
   end
 end
 
@@ -126,6 +128,10 @@ function update_end_turn()
 
  room = zgetar()
  if not room.spawn then
+   -- move player in one
+   player.x += lastmove[1]
+   player.y += lastmove[2]
+
    zel_spawn(room)
  end
 
@@ -163,10 +169,12 @@ end
 
 function on_death(ent)
   if ent != player then
+    del(enemies, ent)
     del(entities, ent)
     if rand(0,10) == 1 or dev then
       drop_item(ent.x, ent.y)
     end
+    if(zel_clear()) zel_unlock()
   end
 end
 
@@ -297,16 +305,84 @@ function input(butt)
   else
    return moveplayer(dirs[butt+1])
   end
-elseif butt==4 and player.ratk > 0 then
+elseif butt==4 and #inventory > 0 then
   aiming = not aiming
+  aimingi = aimingi % #inventory
   return false
  elseif butt==5 then
-  --if aiming then
+  if aiming then
+    aimingi += 1
+    aimingi = aimingi % #inventory
+  end
    --return false -- maybe discharge if #enemies == 0
   --else
    --return switchitem()
   --end
  end
+end
+
+function fireprojectile(entity, dir)
+  mobflip(entity, dir[1])
+  aiming = false
+  -- charges[item] -= 1
+  local hx, hy = throwtile(dir[1], dir[2]) -- max distance???
+
+  local item = inventory[aimingi+1]
+  log("fire item")
+  log(item)
+
+  local hit = entity_at(hx, hy)
+  local amount = 1
+
+  if item.ratk then
+    amount = item.ratk
+  else
+   if not hit then
+     hx -= dir[1]
+     hy -= dir[2]
+     item_create({hx,hy}, item.name)
+   end
+
+   del(inventory, item)
+  end
+
+  if item.throw then
+
+  elseif hit then
+    atk(hit, amount)
+    for i=1,4 do
+      -- different colours??
+      create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
+    end
+  end
+
+  -- create_part(hx,hy,rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2)
+  -- create_part(hx*8+4, hy*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2,5)
+
+
+  -- debug[1]= magics[stored[item]]
+  -- effects[m](hx, hy, hit, entity)
+  return true
+end
+
+function aimtile(entity, dx, dy)
+ local tx,ty,i = entity.x,entity.y,0
+ repeat
+  tx += dx
+  ty += dy
+  i += 1
+ until not walkable(tx,ty, "player") or i >= 8
+ return tx,ty
+end
+
+function throwtile(dx, dy)
+ local tx,ty,i = player.x,player.y,0
+ repeat
+  tx += dx
+  ty += dy
+  i += 1
+ until not walkable(tx,ty, "entities") or i >= 8
+ return tx,ty
 end
 
 function find(array, key, value)
@@ -318,6 +394,7 @@ function find(array, key, value)
 end
 
 function moveplayer(dir)
+  lastmove = dir
   local dx, dy = dir[1], dir[2]
   local destx,desty=player.x+dx,player.y+dy
   --local tle=mget(destx,desty)
@@ -359,6 +436,9 @@ function walkable(x, y, mode)
  if mode == "entities" then
   if (floor) return entity_at(x,y) == nil
  end
+ if mode == "items" then
+  if (floor) return item_at(x,y) == nil
+ end
  if mode == "player" then
   if (floor) return player.x == x and player.y == y
  end
@@ -375,6 +455,10 @@ end
 
 function entity_at(x,y)
   return blank_at(x,y, entities)
+end
+
+function enemy_at(x,y)
+  return blank_at(x,y, enemies)
 end
 
 function item_at(x,y)

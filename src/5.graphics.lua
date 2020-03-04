@@ -28,6 +28,63 @@ function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
   palt()
 end
 
+function addfloat(_txt,ent,_c)
+  local _x,_y = ent.x*8,ent.y*8
+  add(float,{txt=_txt,x=_x,y=_y,c=_c,ty=_y-10,t=0})
+end
+
+function dofloats()
+  for f in all(float) do
+    f.y+=(f.ty-f.y)/10
+    f.t+=1
+    if f.t>70 then
+      del(float,f)
+    end
+  end
+end
+
+function draw_float(f)
+  oprint8(f.txt,f.x,f.y,f.c,0)
+end
+
+function create_part(x,y,dx,dy,sprite,life,sz,col)
+ local p = {
+  x=x,
+  y=y,
+  dx=dx,
+  dy=dy,
+  sprite=sprite,
+  life=life,
+  sz=sz,
+  col=col
+ }
+ -- log("added particle")
+ add(particles,p)
+ return p
+end
+
+function update_part(p)
+ if(p.life<=0)del(particles,p)
+
+ if p.sz !=nil then
+  p.sz-=0.2
+ end
+
+ p.x+=p.dx
+ p.y+=p.dy
+
+ p.life-=1
+end
+
+function draw_part(p)
+  if p.sprite != 0 then
+    _item_draw(p.sprite, p.x, p.y, p.col)
+  -- spr(p.sprite,p.x,p.y)
+  else
+    circfill(p.x,p.y,p.sz,p.col)
+  end
+end
+
 function oprint8(_t,_x,_y,_c)
   for dx=-1,1 do
     for dy=-1,1 do
