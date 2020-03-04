@@ -13,6 +13,11 @@ t_viper = 48
 t_snake = 49
 t_slime= 50
 
+hit=0
+pick=1
+nope=2
+ouch=3
+
 t_enemies = {
   {t_bat,t_snake,t_slime},
   {t_bat,t_snake,t_spider},

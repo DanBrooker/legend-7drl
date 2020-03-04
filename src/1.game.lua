@@ -91,6 +91,7 @@ end
 -- end
 
 function pickup_item(item)
+  -- sfx(pick)
   local isgold = item.name == 'gold'
   local match = find(inventory, "name", item.name)
   if match and not item.stack then
@@ -257,6 +258,7 @@ function atk(entity, amount, cause)
  end
  entity.hp -= amount
  entity.flash = 10
+ -- sfx(hit)
  shake=.5
  if (entity == player) killer = cause or "something"
 end
