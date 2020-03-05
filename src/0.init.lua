@@ -22,14 +22,34 @@ t_enemies = {
   {t_bat,t_snake,t_slime},
   {t_bat,t_snake,t_spider},
   {t_viper,t_snake,t_spider},
+  {t_viper,t_spider,t_griffon},
+  {t_viper,t_spider,t_griffon},
   {t_viper,t_spider,t_griffon}
 }
 
-t_key = {"key"}
-t_gold = {"gold"}
-t_weapons = {"dagger","poison dagger", "bow", "wand", "sword", "bomb"}
-t_items = {"gold","ring","amulet","leather armour","chainmail", "bomb"}
-t_heals = {"health potion"}
+-- t_key = {"key"}
+-- t_gold = {"gold"}
+-- t_weapons = {"dagger","poison dagger", "bow", "wand", "sword", "bomb"}
+-- t_items = {"gold","ring","amulet","leather armour","chainmail", "bomb"}
+-- t_heals = {"health potion"}
+
+t_drops = {
+  {"gold", "food", "health potion", "bomb", "dagger"},
+  {"gold", "food", "health potion", "bomb", "dagger"},
+  {"gold", "food", "health potion", "bomb", "dagger"}
+}
+
+t_treasure = {
+  {'dagger', 'bomb', 'wand'},
+  {'sword', 'ring', 'bow'},
+  {'wand', 'amulet'}
+}
+
+t_secrets = {
+  {'leather armour', 'poison dagger'},
+  {'chainmail', 'poison dagger', 'frost bow'},
+  {'platemail', 'flaming sword', 'mega bomb'}
+}
 
 t_stairs = 58
 t_wall_t = 12
@@ -45,22 +65,27 @@ t_floor = {9,10,25,26,41} --,57, 42}
 allitems={
   {'key',3},
   {'gold',35},
+  {'food',36},
   {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=8}}, -- todo
   {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
   {'dagger',19,true,{atk=2,col=6}},
   {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
   {'sword',20,false,{atk=3,col=6}},
   {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
-  {'wand',5,false,{ratk=1,col=4}}, -- todo
-  {'bow',21,false,{ratk=2,col=4}}, -- todo
-  {'frost bow',21,false,{ratk=2, freeze=2, col=12}}, -- todo
+  {'wand',5,false,{ratk=1, col=4, ammo=3}}, -- todo
+  {'bow',21,false,{ratk=2, col=4, ammo=3}}, -- todo
+  {'frost bow',21,false,{ratk=2, freeze=2, col=12, ammo=5}}, -- todo
   {'bomb',18,true,{throw=expode, explosion=1,col=5}}, -- todo
   {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
-  {'amulet', 36, true, {hp=4}},
+  {'blood ring', 36, true, {hp=5}},
   {'ring', 4, true, {hp=5}},
   {'leather armour', 52, false, {def=1}},
   {'chainmail', 52, false, {def=2}},
-  {'plate armour', 52, false, {def=3}}
+  {'platemail', 52, false, {def=3}}
+}
+
+allenemies={
+
 }
 
 armoury = {}
@@ -188,9 +213,10 @@ function entity_create(x, y, spr, args)
   add(entities, new_entity)
   return new_entity
 end
-function item_create(pos, name)
+
+function item_create(pos, name, args)
   if (x==-1 and y==-1) return
-  log("create " .. name)
+  log("create " .. name .. " " .. to_s(args))
   local data = armoury[name]
   if not data then
     log("no data for " .. name)
@@ -202,6 +228,9 @@ function item_create(pos, name)
    y = pos[2]
   }
   for k,v in pairs(data) do
+   new_item[k] = v
+  end
+  for k,v in pairs(args or {}) do
    new_item[k] = v
   end
   add(items, new_item)

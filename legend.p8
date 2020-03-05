@@ -25,14 +25,34 @@ t_enemies = {
   {t_bat,t_snake,t_slime},
   {t_bat,t_snake,t_spider},
   {t_viper,t_snake,t_spider},
+  {t_viper,t_spider,t_griffon},
+  {t_viper,t_spider,t_griffon},
   {t_viper,t_spider,t_griffon}
 }
 
-t_key = {"key"}
-t_gold = {"gold"}
-t_weapons = {"dagger","poison dagger", "bow", "wand", "sword", "bomb"}
-t_items = {"gold","ring","amulet","leather armour","chainmail", "bomb"}
-t_heals = {"health potion"}
+-- t_key = {"key"}
+-- t_gold = {"gold"}
+-- t_weapons = {"dagger","poison dagger", "bow", "wand", "sword", "bomb"}
+-- t_items = {"gold","ring","amulet","leather armour","chainmail", "bomb"}
+-- t_heals = {"health potion"}
+
+t_drops = {
+  {"gold", "food", "health potion", "bomb", "dagger"},
+  {"gold", "food", "health potion", "bomb", "dagger"},
+  {"gold", "food", "health potion", "bomb", "dagger"}
+}
+
+t_treasure = {
+  {'dagger', 'bomb', 'wand'},
+  {'sword', 'ring', 'bow'},
+  {'wand', 'amulet'}
+}
+
+t_secrets = {
+  {'leather armour', 'poison dagger'},
+  {'chainmail', 'poison dagger', 'frost bow'},
+  {'platemail', 'flaming sword', 'mega bomb'}
+}
 
 t_stairs = 58
 t_wall_t = 12
@@ -48,22 +68,27 @@ t_floor = {9,10,25,26,41} --,57, 42}
 allitems={
   {'key',3},
   {'gold',35},
+  {'food',36},
   {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=8}}, -- todo
   {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
   {'dagger',19,true,{atk=2,col=6}},
   {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
   {'sword',20,false,{atk=3,col=6}},
   {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
-  {'wand',5,false,{ratk=1,col=4}}, -- todo
-  {'bow',21,false,{ratk=2,col=4}}, -- todo
-  {'frost bow',21,false,{ratk=2, freeze=2, col=12}}, -- todo
+  {'wand',5,false,{ratk=1, col=4, ammo=3}}, -- todo
+  {'bow',21,false,{ratk=2, col=4, ammo=3}}, -- todo
+  {'frost bow',21,false,{ratk=2, freeze=2, col=12, ammo=5}}, -- todo
   {'bomb',18,true,{throw=expode, explosion=1,col=5}}, -- todo
   {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
-  {'amulet', 36, true, {hp=4}},
+  {'blood ring', 36, true, {hp=5}},
   {'ring', 4, true, {hp=5}},
   {'leather armour', 52, false, {def=1}},
   {'chainmail', 52, false, {def=2}},
-  {'plate armour', 52, false, {def=3}}
+  {'platemail', 52, false, {def=3}}
+}
+
+allenemies={
+
 }
 
 armoury = {}
@@ -191,9 +216,10 @@ function entity_create(x, y, spr, args)
   add(entities, new_entity)
   return new_entity
 end
-function item_create(pos, name)
+
+function item_create(pos, name, args)
   if (x==-1 and y==-1) return
-  log("create " .. name)
+  log("create " .. name .. " " .. to_s(args))
   local data = armoury[name]
   if not data then
     log("no data for " .. name)
@@ -205,6 +231,9 @@ function item_create(pos, name)
    y = pos[2]
   }
   for k,v in pairs(data) do
+   new_item[k] = v
+  end
+  for k,v in pairs(args or {}) do
    new_item[k] = v
   end
   add(items, new_item)
@@ -355,7 +384,7 @@ function draw_game()
   clip()
   foreach(particles, draw_part)
   foreach(float, draw_float)
-  if (dev) minimap_draw()
+  -- if (dev) minimap_draw()
 
   camera()
 
@@ -372,10 +401,10 @@ function draw_instructions()
   if aiming then
     color(8)
     print("arrows to fire, x to change")
-  elseif player.ratk > 0 then
-    print("z to aim, x for inventory")
+  -- elseif player.ratk > 0 then
+  --   print("z to aim, x for inventory")
   elseif #inventory > 0 then
-    print("x for inventory")
+    print("z to aim, x for inventory")
   end
 end
 
@@ -432,11 +461,16 @@ function pickup_item(item)
   if match and not item.stack then
     return
   elseif #inventory == 5 and not isgold then
-    addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
-    inventory = shuffle(inventory)
-    local drop = pop(inventory)
-    -- drop_item({item.x,item.y}, drop)
-    item_create({item.x,item.y}, drop.name)
+
+    if rand(0,4) == 1 then
+      addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
+      inventory = shuffle(inventory)
+      local drop = pop(inventory)
+      -- drop_item({item.x,item.y}, drop)
+      item_create({item.x,item.y}, drop.name)
+    else
+      return
+    end
     -- return
   end
 
@@ -446,18 +480,28 @@ function pickup_item(item)
     gold += 1
     addfloat("+" .. 1 .. ' gold', player, 9)
     return
-  elseif item.atk then
-    player.atk = item.atk or player.atk
-  elseif item.ratk then
-    player.ratk = item.ratk or player.ratk
-  elseif item.hp then
-    player.hp = item.hp or player.hp
-  elseif item.def then
-    player.def = item.def or player.def
   end
+
+
   addfloat(item.name, player, 7)
 
   add(inventory, item)
+  update_stats()
+end
+
+function update_stats()
+  player.atk = 1
+  player.mhp = 3
+  player.def = 0
+  for item in all(inventory) do
+    if item.atk then
+      player.atk = max(player.atk, item.atk)
+    elseif item.hp then
+      player.mhp = max(player.mhp, item.hp)
+    elseif item.def then
+      player.def = max(player.def, item.def)
+    end
+  end
 end
 
 function update_end_turn()
@@ -508,25 +552,26 @@ function on_death(ent)
     del(enemies, ent)
     del(entities, ent)
     if rand(0,10) == 1 or dev then
-      drop_item(ent.x, ent.y)
+      -- drop_item(ent.x, ent.y)
+      item_create({ent.x,eny.y}, randa(t_drops[depth]))
     end
     if(zel_clear()) zel_unlock()
   end
 end
 
-function drop_item(x,y)
-  local random = rand(1,4)
-  local item = "health potion"
-  if random == 1 then
-    item = randa(t_items)
-  elseif random == 2 then
-    item = randa(t_weapons)
-  elseif random == 3 then
-    item = "gold"
-  end
-  -- log("drop!!!")
-  item_create({x,y}, item)
-end
+-- function drop_item(x,y)
+--   local random = rand(1,4)
+--   local item = "health potion"
+--   if random == 1 then
+--     item = randa(t_items)
+--   elseif random == 2 then
+--     item = randa(t_weapons)
+--   elseif random == 3 then
+--     item = "gold"
+--   end
+--   -- log("drop!!!")
+--   item_create({x,y}, item)
+-- end
 
 function update_ai()
   --buffer()
@@ -665,8 +710,19 @@ function fireprojectile(entity, dir)
   local hx, hy = throwtile(dir[1], dir[2]) -- max distance???
 
   local item = inventory[aimingi+1]
-  log("fire item")
-  log(item)
+  -- log("fire item")
+  -- log(item)
+
+  if item.ammo then
+    if item.ammo == 0 then
+      addfloat("out of charges", player, 9)
+      item.ammo = -1
+      item.ratk = nil
+      return false
+    else
+      item.ammo -= 1
+    end
+  end
 
   local hit = entity_at(hx, hy)
   local amount = 1
@@ -674,23 +730,29 @@ function fireprojectile(entity, dir)
   if item.ratk then
     amount = item.ratk
   else
-   if not hit then
+   if not hit or item.name == 'key' then
      hx -= dir[1]
      hy -= dir[2]
-     item_create({hx,hy}, item.name)
+     amount = 0
+     -- item_create({hx,hy}, item.name, {ammo=item.ammo})
+     item.x, item.y = hx, hy
+
+     add(items, item)
    end
 
    del(inventory, item)
+   update_stats()
   end
 
   if item.throw then
-
+    item.throw(entity, hx, hy, dir)
   elseif hit then
     atk(hit, amount)
-    for i=1,4 do
-      -- different colours??
-      create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
-    end
+  end
+
+  for i=1,4 do
+    -- different colours??
+    create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
   end
 
   -- create_part(hx,hy,rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2)
@@ -1009,7 +1071,7 @@ function zel_spawn(room)
     -- do nothing
     item_create(rnd_pos(room), 'dagger')
     item_create(rnd_pos(room), 'wand')
-    item_create(rnd_pos(room), 'leather armour')
+    -- item_create(rnd_pos(room), 'leather armour')
     item_create(rnd_pos(room), 'health potion')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
@@ -1019,15 +1081,17 @@ function zel_spawn(room)
     local down = rnd_pos(room)
     mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
-    if rand(0,1) == 0 then
-      item_create(rnd_pos(room), randa(t_weapons))
+    if rand(0,3) == 0 then
+      for i = 0,3 do
+        item_create(rnd_pos(room), 'gold')
+      end
     else
-      item_create(rnd_pos(room), randa(t_items))
+      item_create(rnd_pos(room), randa(t_treasure[depth]))
     end
   elseif room.g == 's' then
-    item_create(rnd_pos(room), randa(t_items))
+    item_create(rnd_pos(room), randa(t_secrets[depth]))
   elseif room.g == 'k' then
-    item_create(rnd_pos(room), randa(t_key))
+    item_create(rnd_pos(room), 'key')
     -- chance of mini boss??
   elseif room.g == 'l' then
     -- item_create(room.left+2, room.top+2, randa(t_key))
@@ -1042,8 +1106,9 @@ function zel_spawn(room)
   if (#enemies > mobcount) zel_lock(room)
 
   -- random add heal or food
-  if (rand(0,3) == 0) item_create(rnd_pos(room), randa(t_heals))
-  if (rand(0,2) == 0) item_create(rnd_pos(room), randa(t_gold))
+  if (rand(0,3) == 0) item_create(rnd_pos(room), randa(t_drops[depth]))
+  if (rand(0,2) == 0) item_create(rnd_pos(room), 'gold')
+  if (rand(0,2) == 0) item_create(rnd_pos(room), 'gold')
 end
 
 grid = {}

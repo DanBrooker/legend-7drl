@@ -149,7 +149,7 @@ function zel_spawn(room)
     -- do nothing
     item_create(rnd_pos(room), 'dagger')
     item_create(rnd_pos(room), 'wand')
-    item_create(rnd_pos(room), 'leather armour')
+    -- item_create(rnd_pos(room), 'leather armour')
     item_create(rnd_pos(room), 'health potion')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
@@ -159,15 +159,17 @@ function zel_spawn(room)
     local down = rnd_pos(room)
     mset(down[1], down[2], t_stairs)
   elseif room.g == 't' then
-    if rand(0,1) == 0 then
-      item_create(rnd_pos(room), randa(t_weapons))
+    if rand(0,3) == 0 then
+      for i = 0,3 do
+        item_create(rnd_pos(room), 'gold')
+      end
     else
-      item_create(rnd_pos(room), randa(t_items))
+      item_create(rnd_pos(room), randa(t_treasure[depth]))
     end
   elseif room.g == 's' then
-    item_create(rnd_pos(room), randa(t_items))
+    item_create(rnd_pos(room), randa(t_secrets[depth]))
   elseif room.g == 'k' then
-    item_create(rnd_pos(room), randa(t_key))
+    item_create(rnd_pos(room), 'key')
     -- chance of mini boss??
   elseif room.g == 'l' then
     -- item_create(room.left+2, room.top+2, randa(t_key))
@@ -182,8 +184,9 @@ function zel_spawn(room)
   if (#enemies > mobcount) zel_lock(room)
 
   -- random add heal or food
-  if (rand(0,3) == 0) item_create(rnd_pos(room), randa(t_heals))
-  if (rand(0,2) == 0) item_create(rnd_pos(room), randa(t_gold))
+  if (rand(0,3) == 0) item_create(rnd_pos(room), randa(t_drops[depth]))
+  if (rand(0,2) == 0) item_create(rnd_pos(room), 'gold')
+  if (rand(0,2) == 0) item_create(rnd_pos(room), 'gold')
 end
 
 grid = {}

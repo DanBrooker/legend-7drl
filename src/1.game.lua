@@ -20,7 +20,7 @@ function draw_game()
   clip()
   foreach(particles, draw_part)
   foreach(float, draw_float)
-  if (dev) minimap_draw()
+  -- if (dev) minimap_draw()
 
   camera()
 
@@ -37,10 +37,10 @@ function draw_instructions()
   if aiming then
     color(8)
     print("arrows to fire, x to change")
-  elseif player.ratk > 0 then
-    print("z to aim, x for inventory")
+  -- elseif player.ratk > 0 then
+  --   print("z to aim, x for inventory")
   elseif #inventory > 0 then
-    print("x for inventory")
+    print("z to aim, x for inventory")
   end
 end
 
@@ -97,11 +97,16 @@ function pickup_item(item)
   if match and not item.stack then
     return
   elseif #inventory == 5 and not isgold then
-    addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
-    inventory = shuffle(inventory)
-    local drop = pop(inventory)
-    -- drop_item({item.x,item.y}, drop)
-    item_create({item.x,item.y}, drop.name)
+
+    if rand(0,4) == 1 then
+      addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
+      inventory = shuffle(inventory)
+      local drop = pop(inventory)
+      -- drop_item({item.x,item.y}, drop)
+      item_create({item.x,item.y}, drop.name)
+    else
+      return
+    end
     -- return
   end
 
@@ -111,18 +116,28 @@ function pickup_item(item)
     gold += 1
     addfloat("+" .. 1 .. ' gold', player, 9)
     return
-  elseif item.atk then
-    player.atk = item.atk or player.atk
-  elseif item.ratk then
-    player.ratk = item.ratk or player.ratk
-  elseif item.hp then
-    player.hp = item.hp or player.hp
-  elseif item.def then
-    player.def = item.def or player.def
   end
+
+
   addfloat(item.name, player, 7)
 
   add(inventory, item)
+  update_stats()
+end
+
+function update_stats()
+  player.atk = 1
+  player.mhp = 3
+  player.def = 0
+  for item in all(inventory) do
+    if item.atk then
+      player.atk = max(player.atk, item.atk)
+    elseif item.hp then
+      player.mhp = max(player.mhp, item.hp)
+    elseif item.def then
+      player.def = max(player.def, item.def)
+    end
+  end
 end
 
 function update_end_turn()
@@ -173,25 +188,26 @@ function on_death(ent)
     del(enemies, ent)
     del(entities, ent)
     if rand(0,10) == 1 or dev then
-      drop_item(ent.x, ent.y)
+      -- drop_item(ent.x, ent.y)
+      item_create({ent.x,eny.y}, randa(t_drops[depth]))
     end
     if(zel_clear()) zel_unlock()
   end
 end
 
-function drop_item(x,y)
-  local random = rand(1,4)
-  local item = "health potion"
-  if random == 1 then
-    item = randa(t_items)
-  elseif random == 2 then
-    item = randa(t_weapons)
-  elseif random == 3 then
-    item = "gold"
-  end
-  -- log("drop!!!")
-  item_create({x,y}, item)
-end
+-- function drop_item(x,y)
+--   local random = rand(1,4)
+--   local item = "health potion"
+--   if random == 1 then
+--     item = randa(t_items)
+--   elseif random == 2 then
+--     item = randa(t_weapons)
+--   elseif random == 3 then
+--     item = "gold"
+--   end
+--   -- log("drop!!!")
+--   item_create({x,y}, item)
+-- end
 
 function update_ai()
   --buffer()
@@ -330,8 +346,19 @@ function fireprojectile(entity, dir)
   local hx, hy = throwtile(dir[1], dir[2]) -- max distance???
 
   local item = inventory[aimingi+1]
-  log("fire item")
-  log(item)
+  -- log("fire item")
+  -- log(item)
+
+  if item.ammo then
+    if item.ammo == 0 then
+      addfloat("out of charges", player, 9)
+      item.ammo = -1
+      item.ratk = nil
+      return false
+    else
+      item.ammo -= 1
+    end
+  end
 
   local hit = entity_at(hx, hy)
   local amount = 1
@@ -339,23 +366,29 @@ function fireprojectile(entity, dir)
   if item.ratk then
     amount = item.ratk
   else
-   if not hit then
+   if not hit or item.name == 'key' then
      hx -= dir[1]
      hy -= dir[2]
-     item_create({hx,hy}, item.name)
+     amount = 0
+     -- item_create({hx,hy}, item.name, {ammo=item.ammo})
+     item.x, item.y = hx, hy
+
+     add(items, item)
    end
 
    del(inventory, item)
+   update_stats()
   end
 
   if item.throw then
-
+    item.throw(entity, hx, hy, dir)
   elseif hit then
     atk(hit, amount)
-    for i=1,4 do
-      -- different colours??
-      create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
-    end
+  end
+
+  for i=1,4 do
+    -- different colours??
+    create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
   end
 
   -- create_part(hx,hy,rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2)
