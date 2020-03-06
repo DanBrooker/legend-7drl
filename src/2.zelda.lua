@@ -7,32 +7,10 @@ function zel_draw()
   local rs = flr(size/s)
   for i = 1,s do
     for j = 1,s do
-      -- cursor((i-1)*rs + 3,(j-1)*rs + 2)
-      -- local v = gget(i,j)
-      -- if v == 'e' then
-      --   color(11)
-      -- elseif v == 'b' then
-      --   color(8)
-      -- elseif v == 'h' then
-      --   color(5)
-      -- elseif v == 'k' then
-      --   color(10)
-      -- elseif v == 'l' then
-      --   color(4)
-      -- elseif v == 's' then
-      --   color(2)
-      -- elseif v == 't' then
-      --   color(9)
-      -- else
-      --   color(12)
-      -- end
-      -- -- if (dev) print(v)
-      -- print(v)
-
       local room = zgetr(i,j)
       if room == zgetar() then
         rect(50 + (i*5), (j*5), 50 + (i*5) + 4, (j*5)+4, 5)
-      elseif room.spawn then
+      elseif room.spawn or dev then
         col = 2
         if room.g == 'e' then
           col = 11
@@ -40,6 +18,8 @@ function zel_draw()
           col = 10
         elseif room.g == 'l' then
           col = 9
+        elseif room.g == 'k' and dev then
+          col = 12
         end
         rect(50 + (i*5), (j*5), 50 + (i*5) + 4, (j*5)+4, col)
       end
@@ -47,9 +27,6 @@ function zel_draw()
   end
 end
 
--- tokens 2817
---        2715
---        2709
 
 function gget(x,y)
   return grid[x][y]
@@ -93,12 +70,12 @@ function rnd_pos(room)
     x, y = rand(l,r), rand(t,b)
     i += 1
     -- log(i)
-  until (walkable(x,y, "entities") and walkable(x,y, "items") and (distance(player.x, player.y, x, y) > 2)) or i > 10
+  until (walkable(x,y, "entities") and walkable(x,y, "items") and (distance(player.x, player.y, x, y) > 2)) or i > 20
   -- log("room")
   -- log("player " .. player.x .. ',' .. player.y)
   -- log("spawn " .. x .. ',' .. y)
   -- log('dist ' .. distance(player.x, player.x, x, y))
-  if(i>10) x,y=-1,-1
+  if(i>20) x,y=-1,-1
   -- log(x .. ',' .. y)
   return {x,y}
 end
@@ -112,6 +89,8 @@ function iter_room(room, func)
 end
 
 function zel_lock(room)
+  zel_unlock()
+  zel_last_locked = room
   iter_room(room, function(i,j)
     local t = mget(i,j)
     if (t == t_door_r) t += 1
@@ -124,7 +103,9 @@ function zel_lock(room)
 end
 
 function zel_unlock()
-  local room = zgetar()
+  local room = zel_last_locked
+  if (not room) return
+
   iter_room(room, function(i,j)
     local t = mget(i,j)
     if (t == t_door_r+1) t -= 1
@@ -134,10 +115,15 @@ function zel_unlock()
 
     mset(i,j,t)
   end)
+
+  if room.g == 'b' then
+    local down = rnd_pos(room)
+    mset(down[1], down[2], t_stairs)
+  end
 end
 
 function zel_clear()
-  local room = zgetar()
+  local room = zel_last_locked or zgetar()
   local enemies = false
 
   iter_room(room, function(i,j)
@@ -147,30 +133,90 @@ function zel_clear()
   return not enemies
 end
 
+function banner(text)
+	message = { text=text, ticks=30 }
+end
+
+function hcenter(s)
+	return (64)-flr((#s*4)/2)
+end
+
+function vcenter(s)
+	return (64)-flr(5/2)
+end
+
 function zel_spawn(room)
   -- log("zel_spawn")
   room.spawn = true
+  local rname = roomname(room)
+  if (rname) banner(rname)
 
   local mobcount = #enemies
 
   if room.g == 'e' then
     -- do nothing
-    -- item_create(rnd_pos(room), 'dagger')
+    -- item_create(rnd_pos(room), 'bag')
     -- item_create(rnd_pos(room), 'wand')
     -- item_create(rnd_pos(room), 'leather armour')
     -- item_create(rnd_pos(room), 'health potion')
     -- item_create(rnd_pos(room), 'poison potion')
-    item_create(rnd_pos(room), 'poison dagger')
-    item_create(rnd_pos(room), 'frost bow')
-    item_create(rnd_pos(room), 'flame sword')
-    item_create(rnd_pos(room), 'bomb')
+    -- item_create(rnd_pos(room), 'poison dagger')
+    -- item_create(rnd_pos(room), 'teleport potion')
+    -- item_create(rnd_pos(room), 'frost bow')
+    -- item_create(rnd_pos(room), 'flaming sword')
+    -- item_create(rnd_pos(room), 'bomb')
+
+    -- local pos = rnd_pos(room)
+    -- local boss = enemy_create(pos[1],pos[2], "slime")
+    -- boss.outline = true
+    -- boss.hp += 2
+    -- boss.mhp += 2
+
+    -- item_create(rnd_pos(room), 'shield')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
+    if (rand(0,1) == 0) item_create(rnd_pos(room), randa(t_drops[depth]))
+
   elseif room.g == 'b' then
-    local boss = rnd_pos(room)
-    enemy_create(boss[1],boss[2], 48)
-    local down = rnd_pos(room)
-    mset(down[1], down[2], t_stairs)
+    local bss
+    if depth == 1 then
+      local pos = rnd_pos(room)
+      bss = enemy_create(pos[1],pos[2], "slime")
+
+      for i=1,4 do
+        pos = rnd_pos(room)
+        local baby = enemy_create(pos[1],pos[2], "baby slime")
+      end
+      for i=1,4 do
+        pos = rnd_pos(room)
+        add(enviro, {x=pos[1],y=pos[2], turns=12, spr=31})
+      end
+    elseif depth == 2 then
+      for i=1,3 do
+        pos = rnd_pos(room)
+        bss = enemy_create(pos[1],pos[2], "viper")
+      end
+    elseif depth == 3 then
+
+        pos = rnd_pos(room)
+        bss = enemy_create(pos[1],pos[2], "spider")
+        boss.flying = true
+        bss.hp += 1
+
+      -- replace rocks with webs
+      iter_room(room, function(i,j)
+        if (mget(i,j)==57) mset(i,j, 60)
+      end)
+    elseif depth == 4 then
+      pos = rnd_pos(room)
+      bss = enemy_create(pos[1],pos[2], "griffon")
+    end
+
+    bss.outline = true
+    bss.hp += 1
+    bss.mhp += 2
+    bss.loot = true
+
   elseif room.g == 't' then
     if rand(0,3) == 0 then
       for i = 0,3 do
@@ -191,7 +237,7 @@ function zel_spawn(room)
     for i = 1,(room.g+0) do
       local pos = rnd_pos(room)
       -- TODO: this should be better
-      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth+1})
+      enemy_create(pos[1], pos[2], randa(t_enemies[depth]))
     end
   end
 

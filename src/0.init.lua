@@ -3,43 +3,27 @@
 
 
 size=36
--- dev=true
 
-t_player = 16
-t_griffon = 32
-t_spider = 33
-t_bat = 34
-t_viper = 48
-t_snake = 49
-t_slime= 50
-
-hit=0
-pick=1
-nope=2
-ouch=3
-
--- todo
--- stop enemies spawn betwwen rocks
--- change locked door image
--- enemy health, and abilities
--- posion attacks
--- fire attacks
--- stun attacks
--- UI colours
--- backpack
-
-t_enemies = {
-  {t_bat,t_snake,t_slime},
-  {t_bat,t_snake,t_spider},
-  {t_viper,t_snake,t_spider},
-  {t_viper,t_spider,t_griffon},
+bossrooms = {
+  "slime ranch",
+  "viper's nest",
+  "arachnid's lair",
+  "griffon's cave"
 }
 
--- t_key = {"key"}
--- t_gold = {"gold"}
--- t_weapons = {"dagger","poison dagger", "bow", "wand", "sword", "bomb"}
--- t_items = {"gold","ring","amulet","leather armour","chainmail", "bomb"}
--- t_heals = {"health potion"}
+function roomname(room)
+  if room.g == "e" then
+    return "depth " .. depth
+  elseif room.g == "s" then
+    return "secret"
+  elseif room.g == "b" then
+    return bossrooms[depth]
+  elseif room.g == "k" then
+    return "key room"
+  elseif room.g == "l" then
+    return "locked room"
+  end
+end
 
 t_drops = {
   {"gold", "heart", "food", "health potion", "bomb", "dagger"},
@@ -49,17 +33,24 @@ t_drops = {
 }
 
 t_treasure = {
-  {'shield', 'dagger', 'bomb', 'wand'},
-  {'shield', 'sword', 'ring', 'bow'},
-  {'shield', 'wand', 'amulet'},
-  {'shield', 'wand', 'amulet'}
+  {'shield', 'dagger', 'bomb', 'wand', 'bag'},
+  {'shield', 'sword', 'ring', 'bow', 'poison dagger', 'bag'},
+  {'flaming sword', 'frost bow', 'blood ring', 'mega bomb', 'bag'},
+  {'flaming sword', 'frost bow', 'blood ring', 'mega bomb', 'bag'}
 }
 
 t_secrets = {
-  {'leather armour', 'poison dagger'},
-  {'poison dagger', 'frost bow'},
-  {'flaming sword', 'mega bomb'},
-  {'flaming sword', 'mega bomb'}
+  {'sword', 'poison dagger', 'teleport potion', 'flame potion'},
+  {'poison dagger', 'frost bow', 'teleport potion', 'flame potion'},
+  {'flaming sword', 'mega bomb', 'teleport potion'},
+  {'flaming sword', 'mega bomb', 'teleport potion'}
+}
+
+t_enemies = {
+  {"bat","slime","baby slime","baby slime"},
+  {"slime", "bat", "bat", "snake", "snake"},
+  {"snake","spider", "spider", "slime", "mimic"},
+  {"viper","spider", "slime", "bat", "mimic"}
 }
 
 t_stairs = 58
@@ -82,7 +73,7 @@ heal = function(entity, item)
   for i=1,3 do
     create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 9)
   end
-  del(inventory, item)
+  -- del(inventory, item)
 end
 
 teleport = function(entity, item)
@@ -94,7 +85,8 @@ teleport = function(entity, item)
   else
     player.x,player.y = entity.x,entity.y
   end
-  del(inventory, item)
+  -- del(inventory, item)
+  if(zel_clear()) zel_unlock()
 end
 
 poison = function(entity, item)
@@ -106,27 +98,40 @@ poison = function(entity, item)
   for i=1,5 do
     create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 11)
   end
-  del(inventory, item)
+  -- del(inventory, item)
 end
 
 stun = function(entity, item)
-
+  if entity.hp then
+    entity.stun = 3
+  end
 end
 
 flame = function(entity, item)
   if entity.hp then
     entity.flame = 2
-  else
-    add(enviro, {x=entity.x,y=entity.y, turns=5, spr=15}) -- todo
   end
+  add(enviro, {x=entity.x,y=entity.y, turns=5, spr=15}) -- todo
   for i=1,5 do
     create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 12)
   end
-  del(inventory, item)
+  -- del(inventory, item)
+end
+
+function boom(x,y,item)
+  local ent = entity_at(x,y)
+  if (ent) atk(ent, item.explosion or 2, item.name)
+  if (fget(mget(x,y), 1)) mset(x,y, 25)
+  create_part(x*8+4, y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 12)
 end
 
 explode = function(entity, item)
-
+  boom(entity.x,entity.y, item)
+  for i = 1,4 do
+    local dir = dirs[i]
+    local x, y = entity.x + dir[1], entity.y + dir[2]
+    boom(x,y, item)
+  end
 end
 
 allitems={
@@ -134,6 +139,7 @@ allitems={
   {'gold',35},
   {'heart',37, false, {hp=1}},
   {'shield',52, false, {def=1}},
+  {'bag', 28, false, {bag=1}},
   {'food',53, true, {use=heal, qhp=1, col=9}},
   {'health potion',2,true,{throw=heal, use=heal, qhp=2, col=9}},
   {'teleport potion',2,true,{throw=teleport, use=teleport, col=5}},
@@ -141,13 +147,13 @@ allitems={
   {'fire potion',2,true,{throw=flame, use=flame, col=12}},
   {'dagger',19,true,{atk=2}},
   {'poison dagger',19,true,{atk=1, col=11, hit=poison, col=11}}, --rodo
-  {'sword',20,false,{atk=3,col=6}},
-  {'flaming sword',10,false,{col=8, atk=3,col=9, hit=flame}}, --todo
-  {'wand',5,false,{ratk=1, col=4, ammo=3}}, -- todo
-  {'bow',21,false,{ratk=2, col=4, ammo=3}}, -- todo
-  {'frost bow',21,false,{ratk=2, col=5, ammo=5, throw=freeze}}, -- todo
-  {'bomb',18,true,{throw=explode,col=1}}, -- todo
-  {'mega bomb',18,true,{throw=explode, explosion=2,col=7}}, -- todo
+  {'sword',20,false,{atk=3}},
+  {'flaming sword',20,false,{col=8, atk=3,col=9, hit=flame}}, --todo
+  {'wand',5,false,{ratk=1, col=4, ammo=5}}, -- todo
+  {'bow',21,false,{ratk=2, col=4, ammo=10}}, -- todo
+  {'frost bow',21,false,{ratk=2, col=5, ammo=10, throw=stun}}, -- todo
+  {'bomb',18,true,{throw=explode,use=explode}}, -- todo
+  {'mega bomb',18,true,{throw=explode,use=explode, explosion=4,col=7}}, -- todo
   {'blood ring', 36, true, {hp=5}},
   {'ring', 4, true, {hp=4}},
   -- {'leather armour', 52, false, {def=1}},
@@ -155,8 +161,49 @@ allitems={
   -- {'platemail', 52, false, {def=3}}
 }
 
-allenemies={
+function slime_ai(entity)
+  local dist = distance(entity.x, entity.y, player.x, player.y)
+  if (dist > 10) return
+  if dist <= 2 then
+   move_towards(entity)
+  else
+   local shuffled = shuffle({1,2,3,4})
+   for i in all(shuffled) do
+      local dir = dirs[i]
+      local dx,dy = dir[1], dir[2]
+      local x, y = entity.x + dx, entity.y + dy
+      if walkable(x, y, "entities") then
+        mobwalk(entity, dx,dy)
+        return
+      end
+    end
+  end
+end
 
+function mimic_ai(entity)
+  -- log("mimic ai")
+ local dist = distance(entity.x, entity.y, player.x, player.y)
+ if (dist > 10) return
+ if (dist == 1) then
+   entity.triggered = true
+   move_towards(entity)
+ elseif entity.triggered then
+   -- log("mimic move")
+   move_towards(entity)
+ end
+end
+
+allenemies={
+  {'baby slime',17, {hp=1, ai=slime_ai, slime=true}},
+  {'slime',50, {hp=2, ai=slime_ai,slime=true}},
+  {'bat',34, {flying=true}},
+  {'snake',49, {hit=poison}},
+
+  {'viper',48, {atk=2, hp=3, hit=poison}},
+  {'spider',33, {hp=4, flying=true}},
+
+  {'griffon',32, {hp=5, hit=stun}},
+  {'mimic',51, {hp=3, ai=mimic_ai}},
 }
 
 armoury = {}
@@ -172,9 +219,17 @@ for item in all(allitems) do
   armoury[item[1]] = new_item
 end
 
-function enemy_create(x, y, spr, args)
+bestiary = {}
+for enemy in all(allenemies) do
+  bestiary[enemy[1]] = enemy
+end
+
+function enemy_create(x, y, name)
   if (x==-1 and y==-1) return
-  local new_enemy = entity_create(x, y, spr, args)
+
+  local data = bestiary[name]
+  local new_enemy = entity_create(x, y, data[2], data[3])
+  new_enemy["name"] = name
   add(enemies, new_enemy)
   return new_enemy
 end
@@ -183,6 +238,7 @@ function entity_create(x, y, spr, args)
   if (x==-1 and y==-1) return
   -- log(args)
   local new_entity = {
+   name = "lnk",
    x = x,
    y = y,
    mov = nil,
@@ -191,7 +247,7 @@ function entity_create(x, y, spr, args)
    ai = ai_action,
 
    -- col = col or 10,
-   outline = true,
+   outline = false,
    ani = {spr},
    flash = 0,
 
@@ -201,7 +257,7 @@ function entity_create(x, y, spr, args)
    flying=false,
    flame=0,
 
-   hp=3,
+   hp=1,
    def=0,
    atk=1,
    ratk=0,
@@ -245,6 +301,7 @@ function _init()
 
  dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}}
  _pal={0,128,133,130,129,12,141,2,14,8,10,11,137,7,134,5}
+ dpal={0,1,1,2,1,13,6,4,4,9,3,13,1,13,14}
  poke(0x5f2e,1)
 
  startgame()
@@ -266,7 +323,7 @@ end
 function _draw()
   -- rpal()
  _drw()
- --checkfade()
+ checkfade()
 
  cursor(4,4)
  color(8)
@@ -279,21 +336,24 @@ end
 function startgame()
   -- log("startgame")
   --fading
-  --fadeperc=1
+  fadeperc=0
+  reason = "not sending link"
 
   debug={}
   shake=0
   shakex=0
   shakey=0
 
+	message = { text="", ticks=0 }
+
   depth=1
   gold=0
+  invsize=5
 
   aiming = false
   aimingi = 0
   using = false
   usingi = 0
-  inventory_window = false
 
   entities={}
   enemies={}
@@ -305,15 +365,14 @@ function startgame()
 
   zel_init()
 
-  player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, {ai = noop})
+  player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, 16, {ai = noop, mhp=3, hp=3, name="player"})
   zel_spawn(zgetar())
   log(zgetar())
   local ppos = rnd_pos(zgetar())
   if ppos[1] != -1 then
     player.x,player.y = ppos[1],ppos[2]
-  else
-    log("WHOOPS player at -1,-1")
   end
+
 
   _upd=update_game
   _drw=draw_game
@@ -324,11 +383,14 @@ end
 
 function gameover()
   -- log('set gameover')
+  fadeout(0.02)
   _upd=update_gameover
   _drw=draw_gameover
+
 end
 
 function update_gameover()
+  -- if (fadeperc == 0) fadeperc=0
   if getbutt() >= 0 then
     -- log("restart game")
     startgame()
@@ -337,11 +399,12 @@ end
 
 function draw_gameover()
   cls(0)
+  cursor(16,16)
   color(8)
   print('gameover')
   print('')
   color(9)
-  print('you died')
+  print('death by ' .. reason)
   color(10)
   print('on depth ' .. depth)
   color(11)
@@ -354,6 +417,7 @@ function draw_gameover()
 end
 
 function win_game()
+  fadeout(0.01)
   _upd=update_gamewin
   _drw=draw_gamewin
 end

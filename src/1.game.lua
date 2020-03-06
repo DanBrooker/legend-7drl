@@ -31,6 +31,12 @@ function draw_game()
   draw_stats()
   zel_draw()
   draw_instructions()
+  if message.ticks > 0 then
+    local text = message.text
+    rectfill(0,60,128, 68, 5)
+    print(text, hcenter(text), vcenter(text), 0)
+    message.ticks -= 1
+  end
 end
 
 function draw_instructions()
@@ -110,12 +116,17 @@ function pickup_item(item)
     gold += 1
     addfloat('+gold', player, 10)
     return
+  elseif item.name == 'bag' then
+    del(items, item)
+    invsize += 1
+    addfloat('+bag', player, 10)
+    return
   elseif item.name == 'heart' then
     del(items, item)
     player.hp = min(player.hp + 1, player.mhp)
     addfloat('+hp', player, 10)
     return
-  elseif item.name == 'sheild' then
+  elseif item.name == 'shield' then
     del(items, item)
     player.def += 1
     addfloat('+def', player, 10)
@@ -182,16 +193,25 @@ function update_end_turn()
    local tile = mget(entity.x,entity.y)
    if tile == t_stairs and entity == player then
      depth += 1
+
+     if depth == 5 then
+       win_game()
+       return
+     end
+
      zel_generate()
      player.x, player.y = start[1] * 8 - 4, start[2] * 8 -4
    --elseif fget(tile, 5) then
     -- tip = 'watch your step'
     --if (not entity.flying) atk(entity, 2, 'the void')
    else
-    local env = env_at(entity)
-    if env then
+    local env = env_at(entity.x,entity.y)
+    if env and not entity.flying then
+      log(entity.name .. " stood on env")
+      if (env.spr == 31 and not entity.slime) poison(entity, {})
+      if (env.spr == 15) flame(entity, {})
      -- add(debug, entity.name .. "=" .. env.type)
-     if (entity.name != env.type) atk(entity, 1, env.name)
+     -- if (entity.name != env.type) atk(entity, 1, env.name)
     end
    end
   if (entity.poison > 0) then
@@ -281,21 +301,22 @@ function move_towards(entity)
    mobbump(entity, dx, dy)
    atk(player, entity.atk, entity.name)
    return
-  elseif walkable(x, y, "entities") then
-   if (entity.roots > 0) return
-   if (mget(x,y) != 81 or entity.stupid) insert(moves, dir, dist)
+ elseif walkable(x, y, "entities") or (entity.flying and not enemy_at(x, y)) then
+   -- if (entity.roots > 0) return
+   insert(moves, dir, dist)
   end
  end
 
  if #moves > 0 then
   local move = pop(moves)[1]
   -- add(debug, "move " .. move[1])
-  if (entity.trail) add_enviro(entity.x, entity.y, entity.trail, 2)
+  -- if (entity.trail) add_enviro(entity.x, entity.y, entity.trail, 2)
   mobwalk(entity, move[1], move[2])
  end
 end
 
 function atk(entity, amount, cause)
+
   local def = entity.def
   if def and def > 0 then
     unblocked = max(amount - def, 0)
@@ -309,11 +330,14 @@ function atk(entity, amount, cause)
  else
   addfloat('-'.. amount, entity, 8)
  end
+
  entity.hp -= amount
  entity.flash = 10
  -- sfx(hit)
  shake=.5
- if (entity == player) killer = cause or "something"
+
+ if(entity == player) reason = cause
+ log(cause .. " hit " .. entity.name .. " " .. amount)
 end
 
 function entity_draw(self)
@@ -325,6 +349,8 @@ function entity_draw(self)
     col=11
   elseif self.flame > 0 then
     col=12
+  elseif self.stun > 0 then
+    col=7
  end
  local frame = self.stun != 0 and self.ani[1] or getframe(self.ani)
  local x, y = self.x*8+self.ox, self.y*8+self.oy
@@ -403,9 +429,10 @@ function use()
   -- log(item)
   if item.use then
     item.use(player, item)
+    del(inventory, item)
     return true
   else
-    addfloat('useless', player, 9)
+    addfloat('?', player, 9)
     return false
   end
 end
@@ -453,8 +480,9 @@ function fireprojectile(entity, dir)
 
   if item.throw then
     item.throw(hit or {x=hx,y=hy}, item)
+    del(inventory, item)
   elseif hit then
-    atk(hit, amount)
+    atk(hit, amount, item.name)
   end
 
   for i=1,4 do
@@ -511,13 +539,22 @@ function moveplayer(dir)
   --animate()
 elseif locked(destx,desty) and find(inventory, "name", "key") then
     -- log("unlocked")
-    key = find(inventory, "name", "key")
+    local key = find(inventory, "name", "key")
     del(inventory, key)
     mset(destx, desty, mget(destx,desty)-7)
     -- mobwalk(player,dx,dy)
   elseif entity_at(destx,desty) then
     entity = entity_at(destx,desty)
     atk(entity, player.atk, player.name)
+
+    -- check inventory for item with hit
+    for item in all(inventory) do
+      if (item.hit) then
+        log("item.hit")
+        item.hit(entity, item)
+      end
+    end
+
     mobbump(player,dx,dy)
   else
   -- sfx(63)
@@ -534,11 +571,9 @@ function locked(x, y)
 end
 
 function walkable(x, y, mode)
- -- if(dev) return true
-
  local mode = mode or ""
  local floor = not fget(mget(x,y), 0)
- -- TODO improve this
+
  if mode == "entities" then
   if (floor) return entity_at(x,y) == nil
  end

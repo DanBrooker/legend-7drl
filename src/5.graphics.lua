@@ -1,10 +1,10 @@
 function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
   rpal()
-  pal(0,15)
-  for i=1,15 do
-    pal(i, 0)
-  end
-
+  -- pal(0,15)
+  -- for i=1,15 do
+  --   pal(i, 13)
+  -- end
+  --
   -- if _outline then
   --   for dx=-1,1 do
   --     for dy=-1,1 do
@@ -47,6 +47,43 @@ end
 
 function draw_float(f)
   oprint8(f.txt,f.x,f.y,f.c,0)
+end
+
+function dofade()
+ local p,kmax,col,k=flr(mid(0,fadeperc,1)*100)
+ for j=1,15 do
+  col = j
+  kmax=flr((p+j*1.46)/22)
+  for k=1,kmax do
+   col=dpal[col]
+  end
+  pal(j,col,1)
+ end
+end
+
+function checkfade()
+ if fadeperc>0 then
+  fadeperc=max(fadeperc-0.04,0)
+  dofade()
+ end
+end
+
+function wait(_wait)
+ repeat
+  _wait-=1
+  flip()
+ until _wait<0
+end
+
+function fadeout(spd,_wait)
+ if (spd==nil) spd=0.04
+ if (_wait==nil) _wait=0
+ repeat
+  fadeperc=min(fadeperc+spd,1)
+  dofade()
+  flip()
+ until fadeperc==1
+ wait(_wait)
 end
 
 function create_part(x,y,dx,dy,sprite,life,sz,col)
