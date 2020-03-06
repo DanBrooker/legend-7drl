@@ -16,7 +16,7 @@ function draw_game()
   map(0, 0, 0,0, size, size)
 
 
-  -- foreach(enviro,draw_enviro)
+  foreach(enviro,item_draw)
   foreach(items,item_draw)
   foreach(entities,entity_draw)
   clip()
@@ -38,11 +38,12 @@ function draw_instructions()
   color(13)
   if aiming then
     color(8)
-    print("arrows to fire, x to change")
-  -- elseif player.ratk > 0 then
-  --   print("z to aim, x for inventory")
+    print("arrows = fire, z = next")
+  elseif using then
+    color(8)
+    print("z = confirm, x = next")
   elseif #inventory > 0 then
-    print("z to aim, x for inventory")
+    print("z = aim, x = use")
   end
 end
 
@@ -54,6 +55,9 @@ function draw_inventory()
   end
   if aiming then
     rect(39 + (8*aimingi), 106, 39 + (8*aimingi) + 9, 106 + 8, 11)
+  end
+  if using then
+    rect(39 + (8*usingi), 106, 39 + (8*usingi) + 9, 106 + 8, 11)
   end
 end
 
@@ -67,15 +71,21 @@ end
 function draw_health()
   -- rectfill(0, 0, 11, 22, 0)
   local hearts = ""
+  for i=1,player.mhp do
+   hearts = hearts .. "\x87"
+  end
+  print(hearts, 1, 1, 3)
+  hearts = ""
   for i=1,player.hp do
    hearts = hearts .. "\x87"
   end
-  print(hearts, 1, 1, 8)
+  -- debug[1] = player.hp
+  print(hearts, 1, 1, 9)
   local armour = ""
   for i=1,player.def do
    armour = armour .. "\x87"
   end
-  print(armour, 1, 10, 6)
+  print(armour, 1, 10, 5)
 end
 
 function update_player(player)
@@ -94,32 +104,43 @@ end
 
 function pickup_item(item)
   -- sfx(pick)
-  local isgold = item.name == 'gold'
+  -- local isgold = item.name == 'gold'
+  if item.name == 'gold' then
+    del(items, item)
+    gold += 1
+    addfloat('+gold', player, 10)
+    return
+  elseif item.name == 'heart' then
+    del(items, item)
+    player.hp = min(player.hp + 1, player.mhp)
+    addfloat('+hp', player, 10)
+    return
+  elseif item.name == 'sheild' then
+    del(items, item)
+    player.def += 1
+    addfloat('+def', player, 10)
+    return
+  end
+
+
   local match = find(inventory, "name", item.name)
   if match and not item.stack then
     return
-  elseif #inventory == 5 and not isgold then
+  elseif #inventory == 5 then
 
     if rand(0,4) == 1 then
       addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
       inventory = shuffle(inventory)
       local drop = pop(inventory)
       -- drop_item({item.x,item.y}, drop)
-      item_create({item.x,item.y}, drop.name)
+      item_create({item.x,item.y}, drop.name) -- bug here, will re charge items if fumbled, maybe leave in :D
     else
+      addfloat("full", {x=player.x-1,y=player.y-1}, 9)
       return
     end
-    -- return
   end
 
   del(items, item)
-
-  if isgold then
-    gold += 1
-    addfloat('+gold', player, 10)
-    return
-  end
-
 
   addfloat(item.name, player, 10)
 
@@ -167,12 +188,20 @@ function update_end_turn()
     -- tip = 'watch your step'
     --if (not entity.flying) atk(entity, 2, 'the void')
    else
-    --local env = env_at(entity.x,entity.y)
-    --if env then
-     ---- add(debug, entity.name .. "=" .. env.type)
-     --if (entity.name != env.type) atk(entity, 1, env.name)
-    --end
+    local env = env_at(entity)
+    if env then
+     -- add(debug, entity.name .. "=" .. env.type)
+     if (entity.name != env.type) atk(entity, 1, env.name)
+    end
    end
+  if (entity.poison > 0) then
+    entity.poison -= 1
+    atk(entity, 1, 'poison')
+  end
+  if (entity.flame > 0) then
+    entity.flame -= 1
+    atk(entity, 1, 'fire')
+  end
   if (entity.hp <= 0) then
    on_death(entity)
   end
@@ -189,7 +218,7 @@ function on_death(ent)
   if ent != player then
     del(enemies, ent)
     del(entities, ent)
-    if rand(0,10) == 1 or dev then
+    if rand(0,10) == 1 or ent.loot then
       -- drop_item(ent.x, ent.y)
       item_create({ent.x,ent.y}, randa(t_drops[depth]))
     end
@@ -267,7 +296,13 @@ function move_towards(entity)
 end
 
 function atk(entity, amount, cause)
-  amount -= entity.def
+  local def = entity.def
+  if def and def > 0 then
+    unblocked = max(amount - def, 0)
+    blocked =  amount - unblocked
+    entity.def -= blocked
+    amount = unblocked
+  end
  if amount <= 0 then
    return
   -- addfloat('+'.. abs(amount), entity, 11)
@@ -285,11 +320,15 @@ function entity_draw(self)
  local col = self.col
  if self.flash>0 then
   self.flash-=1
-  col=7
+  col=13
+  elseif self.poison > 0 then
+    col=11
+  elseif self.flame > 0 then
+    col=12
  end
  local frame = self.stun != 0 and self.ani[1] or getframe(self.ani)
  local x, y = self.x*8+self.ox, self.y*8+self.oy
- drawspr(frame, x, y, col, self.flp, self.flash > 0, self.outline)
+ drawspr(frame, x, y, col, self.flp, self.flash > 0 or col!=self.col, self.outline)
 
  --if (self.stun !=0) draws(10, x, y, 0, false)
  --if (self.roots !=0) draws(11, x, y, 0, false)
@@ -322,23 +361,53 @@ function input(butt)
  if butt<4 then
   if aiming then
    return fireprojectile(player, dirs[butt+1])
+  elseif using then
+    return use()
   else
    return moveplayer(dirs[butt+1])
   end
 elseif butt==4 and #inventory > 0 then
-  aiming = not aiming
-  aimingi = aimingi % #inventory
-  return false
- elseif butt==5 then
   if aiming then
     aimingi += 1
-    aimingi = aimingi % #inventory
+    if aimingi >= #inventory then
+      aiming = false
+      aimingi = 0
+    end
+  elseif using then
+    return use()
+  else
+    aiming = true
   end
+  return false
+ elseif butt==5 and #inventory > 0 then
+   if using then
+     usingi += 1
+     if usingi >= #inventory then
+       using = false
+       usingi = 0
+     end
+   else
+     using = true
+   end
    --return false -- maybe discharge if #enemies == 0
   --else
    --return switchitem()
   --end
  end
+end
+
+function use()
+  using = false
+  local item = inventory[usingi+1]
+  -- log("use")
+  -- log(item)
+  if item.use then
+    item.use(player, item)
+    return true
+  else
+    addfloat('useless', player, 9)
+    return false
+  end
 end
 
 function fireprojectile(entity, dir)
@@ -375,7 +444,7 @@ function fireprojectile(entity, dir)
      -- item_create({hx,hy}, item.name, {ammo=item.ammo})
      item.x, item.y = hx, hy
 
-     add(items, item)
+     if (not item.throw) add(items, item)
    end
 
    del(inventory, item)
@@ -383,14 +452,14 @@ function fireprojectile(entity, dir)
   end
 
   if item.throw then
-    item.throw(entity, hx, hy, dir)
+    item.throw(hit or {x=hx,y=hy}, item)
   elseif hit then
     atk(hit, amount)
   end
 
   for i=1,4 do
     -- different colours??
-    create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
+    create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(2)+3, 8)
   end
 
   -- create_part(hx,hy,rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2)
@@ -444,7 +513,7 @@ elseif locked(destx,desty) and find(inventory, "name", "key") then
     -- log("unlocked")
     key = find(inventory, "name", "key")
     del(inventory, key)
-    mset(destx, desty, mget(destx,desty)-1)
+    mset(destx, desty, mget(destx,desty)-7)
     -- mobwalk(player,dx,dy)
   elseif entity_at(destx,desty) then
     entity = entity_at(destx,desty)
@@ -500,6 +569,10 @@ end
 
 function item_at(x,y)
   return blank_at(x,y, items)
+end
+
+function env_at(x,y)
+  return blank_at(x,y, enviro)
 end
 
 function mobwalk(mb,dx,dy)

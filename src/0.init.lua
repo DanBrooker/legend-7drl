@@ -18,13 +18,21 @@ pick=1
 nope=2
 ouch=3
 
+-- todo
+-- stop enemies spawn betwwen rocks
+-- change locked door image
+-- enemy health, and abilities
+-- posion attacks
+-- fire attacks
+-- stun attacks
+-- UI colours
+-- backpack
+
 t_enemies = {
   {t_bat,t_snake,t_slime},
   {t_bat,t_snake,t_spider},
   {t_viper,t_snake,t_spider},
   {t_viper,t_spider,t_griffon},
-  {t_viper,t_spider,t_griffon},
-  {t_viper,t_spider,t_griffon}
 }
 
 -- t_key = {"key"}
@@ -36,18 +44,21 @@ t_enemies = {
 t_drops = {
   {"gold", "heart", "food", "health potion", "bomb", "dagger"},
   {"gold", "heart", "food", "health potion", "bomb", "dagger"},
+  {"gold", "heart", "food", "health potion", "bomb", "dagger"},
   {"gold", "heart", "food", "health potion", "bomb", "dagger"}
 }
 
 t_treasure = {
   {'shield', 'dagger', 'bomb', 'wand'},
   {'shield', 'sword', 'ring', 'bow'},
+  {'shield', 'wand', 'amulet'},
   {'shield', 'wand', 'amulet'}
 }
 
 t_secrets = {
   {'leather armour', 'poison dagger'},
   {'poison dagger', 'frost bow'},
+  {'flaming sword', 'mega bomb'},
   {'flaming sword', 'mega bomb'}
 }
 
@@ -62,25 +73,83 @@ t_door_l = 39
 t_door_r = 55
 t_floor = {9,10,25,26,41} --,57, 42}
 
+heal = function(entity, item)
+  if (not entity.hp) return
+  local health = item.qhp or 1
+  log("healing " .. health)
+  entity.hp = min(entity.hp + health, entity.mhp)
+  addfloat("+" .. health, entity, 9)
+  for i=1,3 do
+    create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 9)
+  end
+  del(inventory, item)
+end
+
+teleport = function(entity, item)
+  if entity.hp then
+    --move to random room
+    local room = randa(rooms)
+    local pos = rnd_pos(room)
+    entity.x,entity.y = pos[1],pos[2]
+  else
+    player.x,player.y = entity.x,entity.y
+  end
+  del(inventory, item)
+end
+
+poison = function(entity, item)
+  if entity.hp then
+    entity.poison = 2
+  else
+    add(enviro, {x=entity.x,y=entity.y, turns=9, spr=31})
+  end
+  for i=1,5 do
+    create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 11)
+  end
+  del(inventory, item)
+end
+
+stun = function(entity, item)
+
+end
+
+flame = function(entity, item)
+  if entity.hp then
+    entity.flame = 2
+  else
+    add(enviro, {x=entity.x,y=entity.y, turns=5, spr=15}) -- todo
+  end
+  for i=1,5 do
+    create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 12)
+  end
+  del(inventory, item)
+end
+
+explode = function(entity, item)
+
+end
+
 allitems={
   {'key',3},
   {'gold',35},
   {'heart',37, false, {hp=1}},
   {'shield',52, false, {def=1}},
-  {'food',53, true, {quaff=heal, qhp=1, col=9}},
-  {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=9}}, -- todo
-  {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
+  {'food',53, true, {use=heal, qhp=1, col=9}},
+  {'health potion',2,true,{throw=heal, use=heal, qhp=2, col=9}},
+  {'teleport potion',2,true,{throw=teleport, use=teleport, col=5}},
+  {'poison potion',2,true,{throw=poison, use=poison, col=11}},
+  {'fire potion',2,true,{throw=flame, use=flame, col=12}},
   {'dagger',19,true,{atk=2}},
-  {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
+  {'poison dagger',19,true,{atk=1, col=11, hit=poison, col=11}}, --rodo
   {'sword',20,false,{atk=3,col=6}},
-  {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
+  {'flaming sword',10,false,{col=8, atk=3,col=9, hit=flame}}, --todo
   {'wand',5,false,{ratk=1, col=4, ammo=3}}, -- todo
   {'bow',21,false,{ratk=2, col=4, ammo=3}}, -- todo
-  {'frost bow',21,false,{ratk=2, freeze=2, col=12, ammo=5}}, -- todo
-  {'bomb',18,true,{throw=expode, explosion=1,col=5}}, -- todo
-  {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
+  {'frost bow',21,false,{ratk=2, col=5, ammo=5, throw=freeze}}, -- todo
+  {'bomb',18,true,{throw=explode,col=1}}, -- todo
+  {'mega bomb',18,true,{throw=explode, explosion=2,col=7}}, -- todo
   {'blood ring', 36, true, {hp=5}},
-  {'ring', 4, true, {hp=5}},
+  {'ring', 4, true, {hp=4}},
   -- {'leather armour', 52, false, {def=1}},
   -- {'chainmail', 52, false, {def=2}},
   -- {'platemail', 52, false, {def=3}}
@@ -130,13 +199,14 @@ function entity_create(x, y, spr, args)
    roots=0,
    poison=0,
    flying=false,
-   stealth=0,
+   flame=0,
 
    hp=3,
    def=0,
    atk=1,
    ratk=0,
   }
+  new_entity.mhp = new_entity.hp
   for k,v in pairs(args or {}) do
     -- log(k .. "=" .. to_s(v))
     new_entity[k] = v
@@ -221,6 +291,8 @@ function startgame()
 
   aiming = false
   aimingi = 0
+  using = false
+  usingi = 0
   inventory_window = false
 
   entities={}

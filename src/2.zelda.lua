@@ -159,6 +159,11 @@ function zel_spawn(room)
     -- item_create(rnd_pos(room), 'wand')
     -- item_create(rnd_pos(room), 'leather armour')
     -- item_create(rnd_pos(room), 'health potion')
+    -- item_create(rnd_pos(room), 'poison potion')
+    item_create(rnd_pos(room), 'poison dagger')
+    item_create(rnd_pos(room), 'frost bow')
+    item_create(rnd_pos(room), 'flame sword')
+    item_create(rnd_pos(room), 'bomb')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
@@ -186,7 +191,7 @@ function zel_spawn(room)
     for i = 1,(room.g+0) do
       local pos = rnd_pos(room)
       -- TODO: this should be better
-      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth})
+      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth+1})
     end
   end
 
@@ -402,7 +407,7 @@ function zel_generate()
 
             if (random == 2 and not once) then
               once = true
-              entity_create(x+i, y+j, 42, {def = 5, ai=noop, outline=false})
+              entity_create(x+i, y+j, 42, {def = 5, ai=noop, outline=false, loot=true})
             else
               tile = 57
             end
@@ -446,7 +451,7 @@ function zel_generate()
     end
 
     if ggetp(a) == 'l' then
-      door += 1
+      door += 7
     elseif ggetp(b) == 's' then
       door -= 1
     end

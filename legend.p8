@@ -21,13 +21,21 @@ pick=1
 nope=2
 ouch=3
 
+-- todo
+-- stop enemies spawn betwwen rocks
+-- change locked door image
+-- enemy health, and abilities
+-- posion attacks
+-- fire attacks
+-- stun attacks
+-- UI colours
+-- backpack
+
 t_enemies = {
   {t_bat,t_snake,t_slime},
   {t_bat,t_snake,t_spider},
   {t_viper,t_snake,t_spider},
   {t_viper,t_spider,t_griffon},
-  {t_viper,t_spider,t_griffon},
-  {t_viper,t_spider,t_griffon}
 }
 
 -- t_key = {"key"}
@@ -39,18 +47,21 @@ t_enemies = {
 t_drops = {
   {"gold", "heart", "food", "health potion", "bomb", "dagger"},
   {"gold", "heart", "food", "health potion", "bomb", "dagger"},
+  {"gold", "heart", "food", "health potion", "bomb", "dagger"},
   {"gold", "heart", "food", "health potion", "bomb", "dagger"}
 }
 
 t_treasure = {
   {'shield', 'dagger', 'bomb', 'wand'},
   {'shield', 'sword', 'ring', 'bow'},
+  {'shield', 'wand', 'amulet'},
   {'shield', 'wand', 'amulet'}
 }
 
 t_secrets = {
   {'leather armour', 'poison dagger'},
   {'poison dagger', 'frost bow'},
+  {'flaming sword', 'mega bomb'},
   {'flaming sword', 'mega bomb'}
 }
 
@@ -65,25 +76,83 @@ t_door_l = 39
 t_door_r = 55
 t_floor = {9,10,25,26,41} --,57, 42}
 
+heal = function(entity, item)
+  if (not entity.hp) return
+  local health = item.qhp or 1
+  log("healing " .. health)
+  entity.hp = min(entity.hp + health, entity.mhp)
+  addfloat("+" .. health, entity, 9)
+  for i=1,3 do
+    create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 9)
+  end
+  del(inventory, item)
+end
+
+teleport = function(entity, item)
+  if entity.hp then
+    --move to random room
+    local room = randa(rooms)
+    local pos = rnd_pos(room)
+    entity.x,entity.y = pos[1],pos[2]
+  else
+    player.x,player.y = entity.x,entity.y
+  end
+  del(inventory, item)
+end
+
+poison = function(entity, item)
+  if entity.hp then
+    entity.poison = 2
+  else
+    add(enviro, {x=entity.x,y=entity.y, turns=9, spr=31})
+  end
+  for i=1,5 do
+    create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 11)
+  end
+  del(inventory, item)
+end
+
+stun = function(entity, item)
+
+end
+
+flame = function(entity, item)
+  if entity.hp then
+    entity.flame = 2
+  else
+    add(enviro, {x=entity.x,y=entity.y, turns=5, spr=15}) -- todo
+  end
+  for i=1,5 do
+    create_part(entity.x*8+4, entity.y*8+4, rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(2)+1, 12)
+  end
+  del(inventory, item)
+end
+
+explode = function(entity, item)
+
+end
+
 allitems={
   {'key',3},
   {'gold',35},
   {'heart',37, false, {hp=1}},
   {'shield',52, false, {def=1}},
-  {'food',53, true, {quaff=heal, qhp=1, col=9}},
-  {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=9}}, -- todo
-  {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
+  {'food',53, true, {use=heal, qhp=1, col=9}},
+  {'health potion',2,true,{throw=heal, use=heal, qhp=2, col=9}},
+  {'teleport potion',2,true,{throw=teleport, use=teleport, col=5}},
+  {'poison potion',2,true,{throw=poison, use=poison, col=11}},
+  {'fire potion',2,true,{throw=flame, use=flame, col=12}},
   {'dagger',19,true,{atk=2}},
-  {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
+  {'poison dagger',19,true,{atk=1, col=11, hit=poison, col=11}}, --rodo
   {'sword',20,false,{atk=3,col=6}},
-  {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
+  {'flaming sword',10,false,{col=8, atk=3,col=9, hit=flame}}, --todo
   {'wand',5,false,{ratk=1, col=4, ammo=3}}, -- todo
   {'bow',21,false,{ratk=2, col=4, ammo=3}}, -- todo
-  {'frost bow',21,false,{ratk=2, freeze=2, col=12, ammo=5}}, -- todo
-  {'bomb',18,true,{throw=expode, explosion=1,col=5}}, -- todo
-  {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
+  {'frost bow',21,false,{ratk=2, col=5, ammo=5, throw=freeze}}, -- todo
+  {'bomb',18,true,{throw=explode,col=1}}, -- todo
+  {'mega bomb',18,true,{throw=explode, explosion=2,col=7}}, -- todo
   {'blood ring', 36, true, {hp=5}},
-  {'ring', 4, true, {hp=5}},
+  {'ring', 4, true, {hp=4}},
   -- {'leather armour', 52, false, {def=1}},
   -- {'chainmail', 52, false, {def=2}},
   -- {'platemail', 52, false, {def=3}}
@@ -133,13 +202,14 @@ function entity_create(x, y, spr, args)
    roots=0,
    poison=0,
    flying=false,
-   stealth=0,
+   flame=0,
 
    hp=3,
    def=0,
    atk=1,
    ratk=0,
   }
+  new_entity.mhp = new_entity.hp
   for k,v in pairs(args or {}) do
     -- log(k .. "=" .. to_s(v))
     new_entity[k] = v
@@ -224,6 +294,8 @@ function startgame()
 
   aiming = false
   aimingi = 0
+  using = false
+  usingi = 0
   inventory_window = false
 
   entities={}
@@ -325,7 +397,7 @@ function draw_game()
   map(0, 0, 0,0, size, size)
 
 
-  -- foreach(enviro,draw_enviro)
+  foreach(enviro,item_draw)
   foreach(items,item_draw)
   foreach(entities,entity_draw)
   clip()
@@ -347,11 +419,12 @@ function draw_instructions()
   color(13)
   if aiming then
     color(8)
-    print("arrows to fire, x to change")
-  -- elseif player.ratk > 0 then
-  --   print("z to aim, x for inventory")
+    print("arrows = fire, z = next")
+  elseif using then
+    color(8)
+    print("z = confirm, x = next")
   elseif #inventory > 0 then
-    print("z to aim, x for inventory")
+    print("z = aim, x = use")
   end
 end
 
@@ -363,6 +436,9 @@ function draw_inventory()
   end
   if aiming then
     rect(39 + (8*aimingi), 106, 39 + (8*aimingi) + 9, 106 + 8, 11)
+  end
+  if using then
+    rect(39 + (8*usingi), 106, 39 + (8*usingi) + 9, 106 + 8, 11)
   end
 end
 
@@ -376,15 +452,21 @@ end
 function draw_health()
   -- rectfill(0, 0, 11, 22, 0)
   local hearts = ""
+  for i=1,player.mhp do
+   hearts = hearts .. "\x87"
+  end
+  print(hearts, 1, 1, 3)
+  hearts = ""
   for i=1,player.hp do
    hearts = hearts .. "\x87"
   end
-  print(hearts, 1, 1, 8)
+  -- debug[1] = player.hp
+  print(hearts, 1, 1, 9)
   local armour = ""
   for i=1,player.def do
    armour = armour .. "\x87"
   end
-  print(armour, 1, 10, 6)
+  print(armour, 1, 10, 5)
 end
 
 function update_player(player)
@@ -403,32 +485,43 @@ end
 
 function pickup_item(item)
   -- sfx(pick)
-  local isgold = item.name == 'gold'
+  -- local isgold = item.name == 'gold'
+  if item.name == 'gold' then
+    del(items, item)
+    gold += 1
+    addfloat('+gold', player, 10)
+    return
+  elseif item.name == 'heart' then
+    del(items, item)
+    player.hp = min(player.hp + 1, player.mhp)
+    addfloat('+hp', player, 10)
+    return
+  elseif item.name == 'sheild' then
+    del(items, item)
+    player.def += 1
+    addfloat('+def', player, 10)
+    return
+  end
+
+
   local match = find(inventory, "name", item.name)
   if match and not item.stack then
     return
-  elseif #inventory == 5 and not isgold then
+  elseif #inventory == 5 then
 
     if rand(0,4) == 1 then
       addfloat("fumble", {x=player.x-1,y=player.y-1}, 9)
       inventory = shuffle(inventory)
       local drop = pop(inventory)
       -- drop_item({item.x,item.y}, drop)
-      item_create({item.x,item.y}, drop.name)
+      item_create({item.x,item.y}, drop.name) -- bug here, will re charge items if fumbled, maybe leave in :D
     else
+      addfloat("full", {x=player.x-1,y=player.y-1}, 9)
       return
     end
-    -- return
   end
 
   del(items, item)
-
-  if isgold then
-    gold += 1
-    addfloat('+gold', player, 10)
-    return
-  end
-
 
   addfloat(item.name, player, 10)
 
@@ -476,12 +569,20 @@ function update_end_turn()
     -- tip = 'watch your step'
     --if (not entity.flying) atk(entity, 2, 'the void')
    else
-    --local env = env_at(entity.x,entity.y)
-    --if env then
-     ---- add(debug, entity.name .. "=" .. env.type)
-     --if (entity.name != env.type) atk(entity, 1, env.name)
-    --end
+    local env = env_at(entity)
+    if env then
+     -- add(debug, entity.name .. "=" .. env.type)
+     if (entity.name != env.type) atk(entity, 1, env.name)
+    end
    end
+  if (entity.poison > 0) then
+    entity.poison -= 1
+    atk(entity, 1, 'poison')
+  end
+  if (entity.flame > 0) then
+    entity.flame -= 1
+    atk(entity, 1, 'fire')
+  end
   if (entity.hp <= 0) then
    on_death(entity)
   end
@@ -498,7 +599,7 @@ function on_death(ent)
   if ent != player then
     del(enemies, ent)
     del(entities, ent)
-    if rand(0,10) == 1 or dev then
+    if rand(0,10) == 1 or ent.loot then
       -- drop_item(ent.x, ent.y)
       item_create({ent.x,ent.y}, randa(t_drops[depth]))
     end
@@ -576,7 +677,13 @@ function move_towards(entity)
 end
 
 function atk(entity, amount, cause)
-  amount -= entity.def
+  local def = entity.def
+  if def and def > 0 then
+    unblocked = max(amount - def, 0)
+    blocked =  amount - unblocked
+    entity.def -= blocked
+    amount = unblocked
+  end
  if amount <= 0 then
    return
   -- addfloat('+'.. abs(amount), entity, 11)
@@ -594,11 +701,15 @@ function entity_draw(self)
  local col = self.col
  if self.flash>0 then
   self.flash-=1
-  col=7
+  col=13
+  elseif self.poison > 0 then
+    col=11
+  elseif self.flame > 0 then
+    col=12
  end
  local frame = self.stun != 0 and self.ani[1] or getframe(self.ani)
  local x, y = self.x*8+self.ox, self.y*8+self.oy
- drawspr(frame, x, y, col, self.flp, self.flash > 0, self.outline)
+ drawspr(frame, x, y, col, self.flp, self.flash > 0 or col!=self.col, self.outline)
 
  --if (self.stun !=0) draws(10, x, y, 0, false)
  --if (self.roots !=0) draws(11, x, y, 0, false)
@@ -631,23 +742,53 @@ function input(butt)
  if butt<4 then
   if aiming then
    return fireprojectile(player, dirs[butt+1])
+  elseif using then
+    return use()
   else
    return moveplayer(dirs[butt+1])
   end
 elseif butt==4 and #inventory > 0 then
-  aiming = not aiming
-  aimingi = aimingi % #inventory
-  return false
- elseif butt==5 then
   if aiming then
     aimingi += 1
-    aimingi = aimingi % #inventory
+    if aimingi >= #inventory then
+      aiming = false
+      aimingi = 0
+    end
+  elseif using then
+    return use()
+  else
+    aiming = true
   end
+  return false
+ elseif butt==5 and #inventory > 0 then
+   if using then
+     usingi += 1
+     if usingi >= #inventory then
+       using = false
+       usingi = 0
+     end
+   else
+     using = true
+   end
    --return false -- maybe discharge if #enemies == 0
   --else
    --return switchitem()
   --end
  end
+end
+
+function use()
+  using = false
+  local item = inventory[usingi+1]
+  -- log("use")
+  -- log(item)
+  if item.use then
+    item.use(player, item)
+    return true
+  else
+    addfloat('useless', player, 9)
+    return false
+  end
 end
 
 function fireprojectile(entity, dir)
@@ -684,7 +825,7 @@ function fireprojectile(entity, dir)
      -- item_create({hx,hy}, item.name, {ammo=item.ammo})
      item.x, item.y = hx, hy
 
-     add(items, item)
+     if (not item.throw) add(items, item)
    end
 
    del(inventory, item)
@@ -692,14 +833,14 @@ function fireprojectile(entity, dir)
   end
 
   if item.throw then
-    item.throw(entity, hx, hy, dir)
+    item.throw(hit or {x=hx,y=hy}, item)
   elseif hit then
     atk(hit, amount)
   end
 
   for i=1,4 do
     -- different colours??
-    create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(sz)+3, 8)
+    create_part(hx*8+4, hy*8+4,(rnd(16)-8)/16,(rnd(16)-8)/16, 0, rnd(30)+10,rnd(2)+3, 8)
   end
 
   -- create_part(hx,hy,rnd(1)-0.5,rnd(0.5)-1,0,rnd(30)+10,rnd(4)+2)
@@ -753,7 +894,7 @@ elseif locked(destx,desty) and find(inventory, "name", "key") then
     -- log("unlocked")
     key = find(inventory, "name", "key")
     del(inventory, key)
-    mset(destx, desty, mget(destx,desty)-1)
+    mset(destx, desty, mget(destx,desty)-7)
     -- mobwalk(player,dx,dy)
   elseif entity_at(destx,desty) then
     entity = entity_at(destx,desty)
@@ -809,6 +950,10 @@ end
 
 function item_at(x,y)
   return blank_at(x,y, items)
+end
+
+function env_at(x,y)
+  return blank_at(x,y, enviro)
 end
 
 function mobwalk(mb,dx,dy)
@@ -1028,6 +1173,11 @@ function zel_spawn(room)
     -- item_create(rnd_pos(room), 'wand')
     -- item_create(rnd_pos(room), 'leather armour')
     -- item_create(rnd_pos(room), 'health potion')
+    -- item_create(rnd_pos(room), 'poison potion')
+    item_create(rnd_pos(room), 'poison dagger')
+    item_create(rnd_pos(room), 'frost bow')
+    item_create(rnd_pos(room), 'flame sword')
+    item_create(rnd_pos(room), 'bomb')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
@@ -1055,7 +1205,7 @@ function zel_spawn(room)
     for i = 1,(room.g+0) do
       local pos = rnd_pos(room)
       -- TODO: this should be better
-      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth})
+      enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth+1})
     end
   end
 
@@ -1271,7 +1421,7 @@ function zel_generate()
 
             if (random == 2 and not once) then
               once = true
-              entity_create(x+i, y+j, 42, {def = 5, ai=noop, outline=false})
+              entity_create(x+i, y+j, 42, {def = 5, ai=noop, outline=false, loot=true})
             else
               tile = 57
             end
@@ -1315,7 +1465,7 @@ function zel_generate()
     end
 
     if ggetp(a) == 'l' then
-      door += 1
+      door += 7
     elseif ggetp(b) == 's' then
       door -= 1
     end
@@ -1555,10 +1705,11 @@ function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
   palt()
 
   palt(0,false)
-  --pal(7,_c)
+  -- pal(9,_c)
+  -- pal(5,_c)
   if _flash then
     for i=1,15 do
-      pal(i, 142)
+      pal(i, _c)
     end
   end
   spr(_spr,_x,_y,1,1,_flip)
@@ -1746,38 +1897,38 @@ function log(thing)
   printh(to_s(thing))
 end
 __gfx__
-000000000000000000000000000000000000000000000000ffffff0fffffff0fffffff0f000000000000000000000000ffffff0f000000000000000000000000
-000000000000000000000000000000000000000000000000ffffff0ffff00f0ffff0cf0f011111100110111000000000ffffff0f000000000000000000000000
-0000000000000000000aa00000aaa0000000000000000a00ffffff0fff00000fffcccc0f011111100100011000000000ffffff0f000000000000000000000000
-0000000000000000000aa00000a0a000000000000000a000000000000000000000c0c0c001111110000000100000000000000000000000000000000000000000
-0000000000000000000aa00000aa0000000f0000000a0000fff0fffff000000ffccccccf011111100000000000000000fff0ffff000000000000000000000000
-000000000000000000affa00000aa00000a0a00000a00000fff0f0fff000000ff0c0c0cf001111100110000000000000fff0ffff000000000000000000000000
-000000000000000000affa00000a0000000a000000000000ffff0ffff000000ffccccccf000111100111000000000000fff0ffff000000000000000000000000
+000000000000000000000000000000000000000000000000ffffff0fffffff0ff777777f000000000000000000000000ffffff0f00000000f777777f00000000
+000000000000000000000000000000000000000000000000ffffff0ffff00f0ff070707f011111100110111000000000ffffff0f00000000f070707f00000c00
+0000000000000000000aa00000aaa0000000000000000a00ffffff0fff00000ff070707f011111100100011000000000ffffff0f00000000f070707f000c0c00
+0000000000000000000aa00000a0a000000000000000a0000000000000000000007070700111111000000010000000000000000000000000007aaa700c0c0c00
+0000000000000000000aa00000aa0000000f0000000a0000fff0fffff000000ff070707f011111100000000000000000fff0ffff00000000f07a0a7f0cccccc0
+000000000000000000affa00000aa00000a0a00000a00000fff0f0fff000000ff070707f001111100110000000000000fff0ffff00000000f07aaa7f0cccccc0
+000000000000000000affa00000a0000000a000000000000ffff0ffff000000ff070707f000111100111000000000000fff0ffff00000000f070707f00cccc00
 0000000000000000000aa000000aa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fff0fff0000000000fff0fff0000000000000000
-0000bb000000bb00000000000000000000000000000f0000fff0f00ff000000ff0c0c0cf0000000000110000fff0fff0000000000fff0fff0000000000000000
-000b5500000b550000000a0000000000000f000000a0f000ffff0f0ff000000ffccccccf00000000011110000000fff00000000000000fff0000000000000000
-00b0550000b055000000a00000000000000f000000a00f00fff0f00ff000000f00c0c0000000000001111000fff0fff0000000000fff0fff0000000000000000
-0005550000055500000ff000000f0000000f000000a00f000000000000000000ffccccff0000000000110000fff0fff0000000000fff0fff0000000000000000
-005055500050555000ffff00000f0000000f000000a00f00fff0ffffff0000ffffc0c0ff0000000000000110fff00000000000000fff00000000000000000000
-000505000005050000ffff0000aaa00000aaa00000a0f000fff0ffffff000fffff0ccfff0000000000000110fff0fff0000000000fff0fff0000000000000000
-0050050000500500000ff000000a0000000a0000000f0000fff0ffffff0fffffff0fffff0000000000000000fff0fff0000000000fff0fff0000000000000000
-000000000000000000000000000000000000000000000000fff0fff0fff0fff0fff0fff000000000000000000000000000000000000000000000000000000000
-00990900000000000000000000000000000a000000000000fff0fff0fff00000fff0ccc0040400000077770000055000ffffff0f000000000000000000000000
-0990009000000000900000900000000000a0a00000aa0aa00000fff0000000000000c0c0040400000777777000500500ffffff0f000000000000000000000000
-909090900009999099000990000aa0000a000a000aaaaaaafff0fff0ff000000ffccccc0000000000777777000055000ffffff0f000000000000000000000000
-00909990090999900999990000aaaa0000a0a0000aaaaa0afff00f00ff000000ffc0c0c000000000077070700055550000000000000000000000000000000000
-009999909099999900999000000aa000000aff0000aaa0a0fff0f0f0fff00000fffcccc0000040400077070005555550fff0ffff000000000000000000000000
-099990009099090900090000000000000000ff00000aaa00fff00f00fff00000fff0c0c0000040400070700005555550fff0ffff000000000000000000000000
-09999990900009090000000000000000000000000000a000fff0fff0fff0fff0fff0fff0000000000000000000555500fff0ffff000000000000000000000000
-0000000000000000000000000000000000000000000000000fff0fff0fff0fff0fff0fff00007000551111110000000000000000000000000000000000000000
-009990000000000000000000000000000aaaaaaa000000a00fff0fff00000fff0c0c0fff00777700551611110000000000000000000000000000000000000000
-009999000999890800000000000000000a00aaaa000000aa00000fff000000ff0cccccff07777770551616110055550000000000000000000000000000000000
-000999000909998000999000000000000a00aaaa000aaaa00fff0fff000000ff0c0c0cff07777777551616170505505000000000000000000000000000000000
-0099900009000008099909000000000000a0aaa000aaaaa00ff0f0ff000000ff0cccccff00777777551616170500005000000000000000000000000000000000
-0999009009999900999909000000000000a0aaa00a0aaa000fff0f00000000000c0c0c0000770770551616110555555000000000000000000000000000000000
-00990099000099009999909000000000000aaa000aaaa0000ff0f0ff00000fff0ccc0fff00000000551611110500005000000000000000000000000000000000
-000999990999990099999990000000000000a000000a00000fff0fff0fff0fff0fff0fff00000000551111110555555000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fff0fff0000000000fff0fff00000000000000b0
+0000bb000000bb00000000000000000000000000000f0000fff0f00ff000000ff070707f0000000000110000fff0fff0000000000fff0ffff070707f00b00bb0
+000b5500000b550000000a0000000000000f000000a0f000ffff0f0ff000000ff070707f00000000011110000000fff00000000000000ffffaaa707f00000b00
+00b0550000b055000000a00000000000000f000000a00f00fff0f00ff000000f007070700000000001111000fff0fff0000000000fff0fff0a0a707000000000
+0005550000055500000ff000000f0000000f000000a00f000000000000000000f070707f0000000000110000fff0fff0000000000fff0ffffaaa707f00bb0bb0
+005055500050555000ffff00000f0000000f000000a00f00fff0ffffff0000fff070707f0000000000000110fff00000000000000fff0000f070707f0bbbbbb0
+000505000005050000ffff0000aaa00000aaa00000a0f000fff0ffffff000ffff070707f0000000000000110fff0fff0000000000fff0ffff070707f00bbbb00
+0050050000500500000ff000000a0000000a0000000f0000fff0ffffff0ffffff777777f0000000000000000fff0fff0000000000fff0ffff777777f00000000
+000000000000000000000000000000000000000000000000fff0fff0fff0fff0fff0fff00000000000000000000000000000000000000000fff0fff000000000
+00990900000000000000000000000000000a000000000000fff0fff0fff0000070000000040400000077770000055000ffffff0f000000007000000000000000
+0990009000000000900000900000000000a0a000000000000000fff00000000077777770040400000777777000500500ffffff0f00000000777aaa7000000000
+909090900009999099000990000aa0000a000a000aa0aa00fff0fff0ff00000070000000000000000777777000055000ffffff0f00000000700a0a0000000000
+00909990090999900999990000aaaa0000a0a0000aaaaa00fff00f00ff000000777777700000000007707070005555000000000000000000777aaa7000000000
+009999909099999900999000000aa000000aff000aaaaa00fff0f0f0fff0000070000000000040400077070005555550fff0ffff000000007000000000000000
+099990009099090900090000000000000000ff0000aaa000fff00f00fff0000077777770000040400070700005555550fff0ffff000000007777777000000000
+0999999090000909000000000000000000000000000a0000fff0fff0fff0fff0fff0fff0000000000000000000555500fff0ffff00000000fff0fff000000000
+0000000000000000000000000000000000000000000000000fff0fff0fff0fff0fff0fff00007000551111110000000000000000000000000fff0fff00000000
+0099900000000000000000000000000000000000000000a00fff0fff00000fff0000000700777700551611110000000000000000000000000000000700000000
+0099990009998908000000000000000000aaaa00000000aa00000fff000000ff077777770777777055161611005555000000000000000000077aaa7700000000
+0009990009099980009990000000000000aaaa00000aaaa00fff0fff000000ff000000070777777755161617050550500000000000000000000a0a0700000000
+0099900009000008099909000000000000aaaa0000aaaaa00ff0f0ff000000ff077777770077777755161617050000500000000000000000077aaa7700000000
+0999009009999900999909000000000000aaaa000a0aaa000fff0f00000000000000000700770770551616110555555000000000000000000000000700000000
+00990099000099009999909000000000000aa0000aaaa0000ff0f0ff00000fff0777777700000000551611110500005000000000000000000777777700000000
+0009999909999900999999900000000000000000000a00000fff0fff0fff0fff0fff0fff00000000551111110555555000000000000000000fff0fff00000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1819,7 +1970,7 @@ __gfx__
 60080006060006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 66000066000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
-0000000000000000050000010101000000000000000000000500000100010000000000000000000005000101010100000000000000000000050100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000030000010101050000000000000000000300000100010500000000000000000003000301010105000000000000000000030300000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

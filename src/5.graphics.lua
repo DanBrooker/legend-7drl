@@ -18,10 +18,11 @@ function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
   palt()
 
   palt(0,false)
-  --pal(7,_c)
+  -- pal(9,_c)
+  -- pal(5,_c)
   if _flash then
     for i=1,15 do
-      pal(i, 142)
+      pal(i, _c)
     end
   end
   spr(_spr,_x,_y,1,1,_flip)
