@@ -1,22 +1,23 @@
 function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
+  rpal()
   pal(0,15)
   for i=1,15 do
     pal(i, 0)
   end
 
-  if _outline then
-    for dx=-1,1 do
-      for dy=-1,1 do
-        spr(_spr,_x + dx ,_y + dy,1,1,_flip)
-      end
-    end
-  end
+  -- if _outline then
+  --   for dx=-1,1 do
+  --     for dy=-1,1 do
+  --       spr(_spr,_x + dx ,_y + dy,1,1,_flip)
+  --     end
+  --   end
+  -- end
 
   -- reset palette
-  pal()
+  rpal()
   palt()
 
-  --palt(0,true)
+  palt(0,false)
   --pal(7,_c)
   if _flash then
     for i=1,15 do
@@ -24,7 +25,7 @@ function drawspr(_spr,_x,_y,_c,_flip, _flash, _outline)
     end
   end
   spr(_spr,_x,_y,1,1,_flip)
-  pal()
+  rpal()
   palt()
 end
 

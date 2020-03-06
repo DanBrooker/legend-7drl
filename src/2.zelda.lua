@@ -31,9 +31,17 @@ function zel_draw()
 
       local room = zgetr(i,j)
       if room == zgetar() then
-        rect(room.left+1 + 50, room.top+1, room.right-2 + 50, room.bottom-2, 11)
+        rect(50 + (i*5), (j*5), 50 + (i*5) + 4, (j*5)+4, 5)
       elseif room.spawn then
-        rect(room.left+1 + 50, room.top+1, room.right-2 + 50, room.bottom-2, 7)
+        col = 2
+        if room.g == 'e' then
+          col = 11
+        elseif room.g == 'b' then
+          col = 10
+        elseif room.g == 'l' then
+          col = 9
+        end
+        rect(50 + (i*5), (j*5), 50 + (i*5) + 4, (j*5)+4, col)
       end
     end
   end
@@ -87,9 +95,9 @@ function rnd_pos(room)
     -- log(i)
   until (walkable(x,y, "entities") and walkable(x,y, "items") and (distance(player.x, player.y, x, y) > 2)) or i > 10
   -- log("room")
-  log("player " .. player.x .. ',' .. player.y)
-  log("spawn " .. x .. ',' .. y)
-  log('dist ' .. distance(player.x, player.x, x, y))
+  -- log("player " .. player.x .. ',' .. player.y)
+  -- log("spawn " .. x .. ',' .. y)
+  -- log('dist ' .. distance(player.x, player.x, x, y))
   if(i>10) x,y=-1,-1
   -- log(x .. ',' .. y)
   return {x,y}
@@ -147,10 +155,10 @@ function zel_spawn(room)
 
   if room.g == 'e' then
     -- do nothing
-    item_create(rnd_pos(room), 'dagger')
-    item_create(rnd_pos(room), 'wand')
+    -- item_create(rnd_pos(room), 'dagger')
+    -- item_create(rnd_pos(room), 'wand')
     -- item_create(rnd_pos(room), 'leather armour')
-    item_create(rnd_pos(room), 'health potion')
+    -- item_create(rnd_pos(room), 'health potion')
     -- item_create(room.left+4, room.top+4, randa(t_items))
     -- item_create(room.left+5, room.top+5, randa(t_key))
   elseif room.g == 'b' then
@@ -177,6 +185,7 @@ function zel_spawn(room)
   else
     for i = 1,(room.g+0) do
       local pos = rnd_pos(room)
+      -- TODO: this should be better
       enemy_create(pos[1], pos[2], randa(t_enemies[depth]), {hp=depth})
     end
   end
@@ -199,16 +208,16 @@ function zel_generate()
   s = 4
   rs = flr(size/s)
 
-  -- log_grid = function(name)
-  --   log("\n--"..name.."--")
-  --   for j = 1,s do
-  --     str = ""
-  --     for i = 1,s do
-  --       str = str .. grid[i][j]
-  --     end
-  --     log(str)
-  --   end
-  -- end
+  log_grid = function(name)
+    log("\n--"..name.."--")
+    for j = 1,s do
+      str = ""
+      for i = 1,s do
+        str = str .. grid[i][j]
+      end
+      log(str)
+    end
+  end
 
   valid_grid = function()
     local zero = 0
@@ -259,7 +268,7 @@ function zel_generate()
     local h = {0,0}
     repeat
       h = randp()
-      log("h" .. to_s(h))
+      -- log("h" .. to_s(h))
     until empty(h) and distancep(boss, h) > 1
     --grid[h[1]][h[2]] = 'h'
     gsetp(h, 'h')
@@ -365,6 +374,7 @@ function zel_generate()
   gsetp(start, 'e')
 
   if not valid_grid() then
+    log("regen!!")
     zel_generate()
     return
   end
@@ -397,6 +407,10 @@ function zel_generate()
               tile = 57
             end
           end
+        elseif g != 'e' then
+          if rand(1,8) == 1 then
+            entity_create(x+i, y+j, 43, {hp = 1, ai=noop})
+          end
         end
         mset(x+i, y+j, tile)
       end
@@ -408,7 +422,7 @@ function zel_generate()
 
   end
 
-  -- log_grid("end")
+  log_grid("end")
 
   function add_door(a,b)
     local dx,dy = normalise(b[1]-a[1], b[2]-a[2])
@@ -470,16 +484,7 @@ function zel_generate()
       }
       add(rooms, room)
       if g != 'h' and g != 0 then
-
-        -- if g == 'e' then
-        --   zel_active = room.index
-        --   log("player room")
-        --   log(zel_active)
-        --   log(i .. ',' .. j)
-        --   log(room)
-        -- end
-
-        draw_room(x, y)
+        draw_room(x, y, g)
       end
     end
   end

@@ -8,9 +8,11 @@ end
 
 function draw_game()
   cls(0)
+
   do_shake()
 
   clip(32, 32, 128-56, 128-56)
+    rpal()
   map(0, 0, 0,0, size, size)
 
 
@@ -114,12 +116,12 @@ function pickup_item(item)
 
   if isgold then
     gold += 1
-    addfloat("+" .. 1 .. ' gold', player, 9)
+    addfloat('+gold', player, 10)
     return
   end
 
 
-  addfloat(item.name, player, 7)
+  addfloat(item.name, player, 10)
 
   add(inventory, item)
   update_stats()
@@ -189,7 +191,7 @@ function on_death(ent)
     del(entities, ent)
     if rand(0,10) == 1 or dev then
       -- drop_item(ent.x, ent.y)
-      item_create({ent.x,eny.y}, randa(t_drops[depth]))
+      item_create({ent.x,ent.y}, randa(t_drops[depth]))
     end
     if(zel_clear()) zel_unlock()
   end
@@ -301,7 +303,7 @@ end
 function _item_draw(s,x,y,col)
   pal(15,col or 10)
   spr(s,x,y)
-  pal()
+  rpal()
 end
 
 function getframe(ani)

@@ -34,21 +34,21 @@ t_enemies = {
 -- t_heals = {"health potion"}
 
 t_drops = {
-  {"gold", "food", "health potion", "bomb", "dagger"},
-  {"gold", "food", "health potion", "bomb", "dagger"},
-  {"gold", "food", "health potion", "bomb", "dagger"}
+  {"gold", "heart", "food", "health potion", "bomb", "dagger"},
+  {"gold", "heart", "food", "health potion", "bomb", "dagger"},
+  {"gold", "heart", "food", "health potion", "bomb", "dagger"}
 }
 
 t_treasure = {
-  {'dagger', 'bomb', 'wand'},
-  {'sword', 'ring', 'bow'},
-  {'wand', 'amulet'}
+  {'shield', 'dagger', 'bomb', 'wand'},
+  {'shield', 'sword', 'ring', 'bow'},
+  {'shield', 'wand', 'amulet'}
 }
 
 t_secrets = {
   {'leather armour', 'poison dagger'},
-  {'chainmail', 'poison dagger', 'frost bow'},
-  {'platemail', 'flaming sword', 'mega bomb'}
+  {'poison dagger', 'frost bow'},
+  {'flaming sword', 'mega bomb'}
 }
 
 t_stairs = 58
@@ -65,10 +65,12 @@ t_floor = {9,10,25,26,41} --,57, 42}
 allitems={
   {'key',3},
   {'gold',35},
-  {'food',36},
-  {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=8}}, -- todo
+  {'heart',37, false, {hp=1}},
+  {'shield',52, false, {def=1}},
+  {'food',53, true, {quaff=heal, qhp=1, col=9}},
+  {'health potion',2,true,{throw=heal, quaff=heal, qhp=2, col=9}}, -- todo
   {'teleport potion',2,true,{quaff=teleport, throw=teleport, col=12}}, -- todo
-  {'dagger',19,true,{atk=2,col=6}},
+  {'dagger',19,true,{atk=2}},
   {'poison dagger',19,true,{atk=1, col=11, poison=1, throw=true, col=11}}, --rodo
   {'sword',20,false,{atk=3,col=6}},
   {'flaming sword',10,false,{col=8, atk=3, flame=1,col=9}}, --todo
@@ -79,9 +81,9 @@ allitems={
   {'mega bomb',18,true,{throw=expode, explosion=2,col=8}}, -- todo
   {'blood ring', 36, true, {hp=5}},
   {'ring', 4, true, {hp=5}},
-  {'leather armour', 52, false, {def=1}},
-  {'chainmail', 52, false, {def=2}},
-  {'platemail', 52, false, {def=3}}
+  -- {'leather armour', 52, false, {def=1}},
+  -- {'chainmail', 52, false, {def=2}},
+  -- {'platemail', 52, false, {def=3}}
 }
 
 allenemies={
@@ -100,77 +102,6 @@ for item in all(allitems) do
   end
   armoury[item[1]] = new_item
 end
-
--- armoury = {
---   k1 = {
---     name = 'key',
---     spr = 3,
---     type = 'k'
---   },
---   g1 = {
---     name = 'gold',
---     spr = 35,
---     amount = 1,
---     type = 'g'
---   },
---   w1 = {
---     name = "dagger",
---     type = "w",
---     atk = 2,
---     spr = 19
---   },
---   w2 = {
---     name = "sword",
---     type = "w",
---     atk = 3,
---     spr = 20
---   },
---   w3 = {
---     name = "great sword",
---     type = "w",
---     atk = 4,
---     spr = 20
---   },
---   w4 = {
---     name = "wand",
---     type = "r",
---     ratk = 1,
---     spr = 5
---   },
---   w5 = {
---     name = "bow",
---     type = "r",
---     ratk = 2,
---     spr = 21
---   },
---   i1 = {
---     name = "ring",
---     type = "i",
---     spr = 4
---   },
---   i2 = {
---     name = "amulet",
---     type = "i",
---     spr = 36
---   },
---   i3 = {
---     name = "armour",
---     type = "a",
---     armour = 1,
---     spr = 52
---   },
---   i4 = {
---     name = "bomb",
---     type = "i",
---     spr = 18
---   },
---   i5 = {
---     name = "health potion",
---     type = "i",
---     dhp = 2,
---     spr=2
---   }
--- }
 
 function enemy_create(x, y, spr, args)
   if (x==-1 and y==-1) return
@@ -216,10 +147,10 @@ end
 
 function item_create(pos, name, args)
   if (x==-1 and y==-1) return
-  log("create " .. name .. " " .. to_s(args))
+  -- log("create " .. name .. " " .. to_s(args))
   local data = armoury[name]
   if not data then
-    log("no data for " .. name)
+    -- log("no data for " .. name)
     return
   end
   -- log(data)
@@ -243,6 +174,8 @@ function _init()
  --dpal={0,1,1,2,1,13,6,4,4,9,3,13,1,13,14} -- fading
 
  dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}}
+ _pal={0,128,133,130,129,12,141,2,14,8,10,11,137,7,134,5}
+ poke(0x5f2e,1)
 
  startgame()
 end
@@ -253,7 +186,15 @@ function _update60()
  dofloats()
 end
 
+function rpal()
+  pal()
+  for i,c in pairs(_pal) do
+   pal(i-1,c,1)
+  end
+end
+
 function _draw()
+  -- rpal()
  _drw()
  --checkfade()
 
@@ -294,9 +235,13 @@ function startgame()
 
   player=entity_create(start[1] * 8 - 4, start[2] * 8 -4, t_player, {ai = noop})
   zel_spawn(zgetar())
+  log(zgetar())
   local ppos = rnd_pos(zgetar())
-  player.x,player.y = ppos[1],ppos[2]
-
+  if ppos[1] != -1 then
+    player.x,player.y = ppos[1],ppos[2]
+  else
+    log("WHOOPS player at -1,-1")
+  end
 
   _upd=update_game
   _drw=draw_game
